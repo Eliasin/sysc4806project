@@ -1,8 +1,13 @@
-use rocket_dyn_templates::{tera::Context, Template};
-use serde::Serialize;
-
 #[macro_use]
 extern crate rocket;
+
+#[macro_use]
+extern crate diesel;
+
+use rocket_dyn_templates::Template;
+
+pub mod models;
+pub mod schema;
 
 #[get("/")]
 fn index() -> &'static str {
@@ -12,6 +17,6 @@ fn index() -> &'static str {
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .mount("/", routes![index, show])
+        .mount("/", routes![index])
         .attach(Template::fairing())
 }
