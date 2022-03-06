@@ -1,0 +1,4 @@
+CREATE TABLE professors (
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name text
+);
