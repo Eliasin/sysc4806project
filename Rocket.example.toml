@@ -1,2 +1,3 @@
+# An example for what Rocket.toml should be
 [global.databases]
 db = { url = "postgres://username:password@localhost/db" }
