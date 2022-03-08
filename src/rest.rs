@@ -36,6 +36,8 @@ pub fn routes() -> Vec<Route> {
 
 #[cfg(test)]
 mod test {
+    use std::env::set_var;
+
     use crate::{
         models::{NewResearchField, ResearchField},
         rest::IdPayload,
@@ -48,7 +50,6 @@ mod test {
         serde::DeserializeOwned,
         Build, Rocket,
     };
-    use serde::Deserialize;
 
     use super::DbConn;
 
@@ -87,10 +88,14 @@ mod test {
         .await;
     }
 
-    async fn setup(rocket: Rocket<Build>) -> Client {
+    const DATABASE_URL_KEY: &'static str = "databases.db.url";
+    async fn setup() -> Client {
+        set_var("ROCKET_PROFILE", "testing");
+
+        let rocket = rocket();
         let db_url = rocket
             .figment()
-            .find_value("databases.db.url")
+            .find_value(DATABASE_URL_KEY)
             .expect("no database url configured")
             .into_string()
             .expect("database url cannot be converted to string");
@@ -123,7 +128,7 @@ mod test {
 
     #[rocket::async_test]
     async fn create_get_research_field() {
-        let client = setup(rocket()).await;
+        let client = setup().await;
 
         let biology = NewResearchField {
             name: "Biology".to_string(),
