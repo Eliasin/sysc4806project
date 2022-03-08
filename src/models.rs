@@ -40,6 +40,18 @@ pub struct Applicant {
     pub grade_audit_path: String,
 }
 
+#[derive(Insertable)]
+#[table_name = "applicants"]
+pub struct NewApplicant {
+    pub name: String,
+    pub desired_field_id: i32,
+    pub phone_number: String,
+    pub email: String,
+    pub cv_path: String,
+    pub diploma_path: String,
+    pub grade_audit_path: String,
+}
+
 #[derive(Queryable, Identifiable, Associations, PartialEq, Debug)]
 #[primary_key(applicant_id, prof_id)]
 #[belongs_to(Applicant, foreign_key = "applicant_id")]
