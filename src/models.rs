@@ -6,6 +6,12 @@ pub struct ResearchField {
     pub name: String,
 }
 
+#[derive(Insertable, Debug)]
+#[table_name = "research_fields"]
+pub struct NewResearchField {
+    pub name: String,
+}
+
 #[derive(Queryable, Identifiable, PartialEq, Debug)]
 pub struct Professor {
     pub id: i32,
