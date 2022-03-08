@@ -4,9 +4,9 @@ use crate::models::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::Route;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct IdPayload {
     id: ID,
 }
@@ -32,4 +32,126 @@ async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>
 
 pub fn routes() -> Vec<Route> {
     routes![create_research_field, get_research_field]
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        models::{NewResearchField, ResearchField},
+        rest::IdPayload,
+        rocket,
+    };
+    use diesel::RunQueryDsl;
+    use rocket::{
+        http::Status,
+        local::asynchronous::{Client, LocalResponse},
+        serde::DeserializeOwned,
+        Build, Rocket,
+    };
+    use serde::Deserialize;
+
+    use super::DbConn;
+
+    fn is_testing_db<T: AsRef<str>>(url: T) -> bool {
+        let lowercase = url.as_ref().to_ascii_lowercase();
+        lowercase.contains("testing") || lowercase.contains("test")
+    }
+
+    // This resource is only accessible during testing, as only test setup functions mount it
+    #[delete("/delete")]
+    async fn reset_database(conn: DbConn) {
+        conn.run(|c| {
+            use crate::schema;
+            use schema::applicants::dsl::*;
+            use schema::professor_research_fields::dsl::*;
+            use schema::professors::dsl::*;
+            use schema::research_fields::dsl::*;
+            use schema::student_applied_to::dsl::*;
+
+            diesel::delete(student_applied_to)
+                .execute(c)
+                .expect("could not delete student_applied_to table");
+            diesel::delete(professor_research_fields)
+                .execute(c)
+                .expect("could not delete professor_research_fields table");
+            diesel::delete(applicants)
+                .execute(c)
+                .expect("could not delete applicants table");
+            diesel::delete(professors)
+                .execute(c)
+                .expect("could not delete professors table");
+            diesel::delete(research_fields)
+                .execute(c)
+                .expect("could not delete research_fields table");
+        })
+        .await;
+    }
+
+    async fn setup(rocket: Rocket<Build>) -> Client {
+        let db_url = rocket
+            .figment()
+            .find_value("databases.db.url")
+            .expect("no database url configured")
+            .into_string()
+            .expect("database url cannot be converted to string");
+
+        if !is_testing_db(&db_url) {
+            panic!(
+                "DB url {} is not a testing database url (must contain test or testing)",
+                db_url
+            );
+        }
+
+        let client = Client::tracked(rocket.mount("/testing-only", routes![reset_database]))
+            .await
+            .expect("valid rocket instance");
+
+        client.delete("/testing-only/delete").dispatch().await;
+
+        client
+    }
+
+    // The into_json method of the async LocalResponse tends to hang our tests, but grabbing the
+    // string out of the response and deserializing ourselves works fine
+    async fn to_json<T: DeserializeOwned>(response: LocalResponse<'_>) -> T {
+        let body = response
+            .into_string()
+            .await
+            .expect("response body could not be converted to string");
+
+        serde_json::from_str(&body).expect("could not deserialize response body into JSON")
+    }
+
+    #[rocket::async_test]
+    async fn create_get_research_field() {
+        let client = setup(rocket()).await;
+
+        let biology = NewResearchField {
+            name: "Biology".to_string(),
+        };
+
+        println!("Sending first create message...");
+        let create_response = client
+            .post("/rest/research-field")
+            .json(&biology)
+            .dispatch()
+            .await;
+
+        assert_eq!(create_response.status(), Status::Ok);
+        let id = to_json::<IdPayload>(create_response).await.id;
+
+        let biology_get_response = client
+            .get(format!("/rest/research-field?id={}", id))
+            .dispatch()
+            .await;
+
+        assert_eq!(biology_get_response.status(), Status::Ok);
+        assert_eq!(
+            to_json::<ResearchField>(biology_get_response).await,
+            ResearchField {
+                id,
+                name: biology.name
+            }
+        );
+    }
 }
