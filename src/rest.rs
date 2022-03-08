@@ -111,9 +111,8 @@ mod test {
         client
     }
 
-    // The into_json method of the async LocalResponse tends to hang our tests, but grabbing the
-    // string out of the response and deserializing ourselves works fine
-    async fn to_json<T: DeserializeOwned>(response: LocalResponse<'_>) -> T {
+    // The into_json method of the async LocalResponse tends to hangs as of v0.5-rc1 (https://github.com/SergioBenitez/Rocket/issues/1893)
+    async fn to_json_workaround<T: DeserializeOwned>(response: LocalResponse<'_>) -> T {
         let body = response
             .into_string()
             .await
@@ -138,7 +137,7 @@ mod test {
             .await;
 
         assert_eq!(create_response.status(), Status::Ok);
-        let id = to_json::<IdPayload>(create_response).await.id;
+        let id = to_json_workaround::<IdPayload>(create_response).await.id;
 
         let biology_get_response = client
             .get(format!("/rest/research-field?id={}", id))
@@ -147,7 +146,7 @@ mod test {
 
         assert_eq!(biology_get_response.status(), Status::Ok);
         assert_eq!(
-            to_json::<ResearchField>(biology_get_response).await,
+            to_json_workaround::<ResearchField>(biology_get_response).await,
             ResearchField {
                 id,
                 name: biology.name
