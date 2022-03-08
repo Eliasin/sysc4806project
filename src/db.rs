@@ -8,7 +8,7 @@ pub struct DbConn(diesel::PgConnection);
 
 pub type ID = i32;
 
-pub async fn create_research_field<T: AsRef<str>>(conn: DbConn, name: T) -> QueryResult<ID> {
+pub async fn create_research_field<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::research_fields;
 
     let new_research_field = NewResearchField {
@@ -24,7 +24,10 @@ pub async fn create_research_field<T: AsRef<str>>(conn: DbConn, name: T) -> Quer
     .await
 }
 
-pub async fn get_research_field(conn: DbConn, research_field_id: ID) -> QueryResult<ResearchField> {
+pub async fn get_research_field(
+    conn: &DbConn,
+    research_field_id: ID,
+) -> QueryResult<ResearchField> {
     use schema::research_fields::dsl::*;
 
     conn.run(move |c| research_fields.find(research_field_id).first(c))
@@ -75,7 +78,7 @@ pub async fn delete_professor(conn: DbConn, professor_id: ID) -> QueryResult<()>
 }
 
 pub async fn add_researched_field_to_professor(
-    conn: DbConn,
+    conn: &DbConn,
     professor_id: ID,
     research_field_id: ID,
 ) -> QueryResult<()> {
@@ -96,7 +99,7 @@ pub async fn add_researched_field_to_professor(
 }
 
 pub async fn get_fields_professor_researches(
-    conn: DbConn,
+    conn: &DbConn,
     professor_id: ID,
 ) -> QueryResult<Vec<ResearchField>> {
     use schema::professor_research_fields::dsl as dsl_professor_research_fields;
@@ -113,7 +116,7 @@ pub async fn get_fields_professor_researches(
 }
 
 pub async fn remove_researched_field_from_professor(
-    conn: DbConn,
+    conn: &DbConn,
     professor_id: ID,
     research_field_id: ID,
 ) -> QueryResult<()> {
@@ -127,7 +130,7 @@ pub async fn remove_researched_field_from_professor(
 }
 
 pub async fn create_applicant<T: AsRef<str>>(
-    conn: DbConn,
+    conn: &DbConn,
     applicant: NewApplicant,
 ) -> QueryResult<ID> {
     use schema::applicants;
@@ -159,7 +162,7 @@ pub async fn delete_applicant(conn: DbConn, applicant_id: ID) -> QueryResult<()>
 }
 
 pub async fn add_application_to_applicant(
-    conn: DbConn,
+    conn: &DbConn,
     applicant_id: ID,
     professor_id: ID,
 ) -> QueryResult<()> {
@@ -180,7 +183,7 @@ pub async fn add_application_to_applicant(
 }
 
 pub async fn get_profs_applicant_applied_to(
-    conn: DbConn,
+    conn: &DbConn,
     applicant_id: ID,
 ) -> QueryResult<Vec<Professor>> {
     use schema::student_applied_to::dsl as dsl_student_applied_to;
@@ -197,7 +200,7 @@ pub async fn get_profs_applicant_applied_to(
 }
 
 pub async fn remove_application_from_applicant(
-    conn: DbConn,
+    conn: &DbConn,
     applicant_id: ID,
     professor_id: ID,
 ) -> QueryResult<()> {

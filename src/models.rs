@@ -1,12 +1,13 @@
 use crate::schema::*;
+use rocket::serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Identifiable, PartialEq, Debug)]
+#[derive(Queryable, Identifiable, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ResearchField {
     pub id: i32,
     pub name: String,
 }
 
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Deserialize, Serialize)]
 #[table_name = "research_fields"]
 pub struct NewResearchField {
     pub name: String,
