@@ -1,0 +1,20 @@
+{% extends "selection_layout" %}
+
+{% block script %}
+<script>
+    function selectionA() {
+        window.location.pathname = "/student/new/";
+    }
+    function selectionB() {
+        window.location.pathname = "/student/list/";
+    }
+</script>
+{% endblock script %}
+
+{% block selection_a_header %}
+Create New
+{% endblock selection_a_header %}
+
+{% block selection_b_header %}
+List Existing
+{% endblock selection_b_header %}
