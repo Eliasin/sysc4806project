@@ -1,0 +1,24 @@
+{% extends "layout" %}
+
+{% block content %}
+
+{% block script %}
+{% endblock script %}
+
+<div class="">
+    <div id="selection-a">
+        <h2 class="selection-header">
+            {% block selection_a_header %}
+            {% endblock selection_a_header %}
+        </h2>
+        <button class="select" onclick="selectionA()"></button>
+    </div>
+    <div id="selection-b">
+        <h2 class="selection-header">
+            {% block selection_b_header %}
+            {% endblock selection_b_header %}
+        </h2>
+        <button class="select" onclick="selectionB()"></button>
+    </div>
+</div>
+{% endblock content %}
