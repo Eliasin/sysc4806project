@@ -11,13 +11,13 @@ fn index() -> Template {
 #[get("/prof")]
 fn prof() -> Template {
     let context = Context::new();
-    Template::render("prof-select", &context.into_json())
+    Template::render("prof_select", &context.into_json())
 }
 
 #[get("/student")]
 fn student() -> Template {
     let context = Context::new();
-    Template::render("student-select", &context.into_json())
+    Template::render("student_select", &context.into_json())
 }
 
 pub fn routes() -> Vec<Route> {
