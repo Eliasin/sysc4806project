@@ -10,11 +10,12 @@ Heroku Link: https://sysc4806-rust.herokuapp.com/
 Set up Postgres database
     - https://www.postgresql.org/docs/9.0/sql-createdatabase.html
 
-cargo install diesel
+Install diesel
+    - https://diesel.rs/guides/getting-started
 
 diesel migration run --database-url DATABASE_URL
 
-use Rocket.example.toml to create and configure Rocket.toml
+Use Rocket.example.toml to create and configure Rocket.toml
 
 cargo run
 ```
