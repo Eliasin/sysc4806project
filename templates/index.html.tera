@@ -1,20 +1,99 @@
-{% extends "selection_layout" %}
+{% extends "layout" %}
 
-{% block script %}
+{% block content %}
+<h1>Professors</h1>
+{% for professor in professors %}
+<p>
+    <input class="prof-checkbox" data-id={{professor.id}} type=checkbox />
+    <div>{{professor.name}}</div>
+</p>
+{% endfor %}
+<input id="professor-name" type=text/>
+<button onclick="createProfessor()">Create Professor</button>
+<button onclick="deleteProfessors()">Delete Selected Professors</button>
+</p>
+
+<h1>Research Fields</h1>
+{% for research_field in research_fields %}
+<p>
+    <input class="research-field-checkbox" data-id={{research_field.id}} type=checkbox />
+    <div>{{research_field.name}}</div>
+</p>
+{% endfor %}
+<p>
+<input id="research-field-name" type=text/>
+<button onclick="createResearchField()">Create Research Field</button>
+<button onclick="deleteResearchFields()">Delete Selected Research Fields</button>
+</p>
+{% endblock content %}
+
+{% block pre_script %}
 <script>
-    function selectionA() {
-        window.location.pathname = "/prof/";
+    async function createResearchField() {
+        let researchFieldNameInput = document.getElementById('research-field-name');
+
+        if (researchFieldNameInput.value === "") {
+            return;
+        }
+
+        await fetch(window.location.origin + '/rest/research-field', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: researchFieldNameInput.value,
+            })
+        });
+
+        window.location.reload();
     }
-    function selectionB() {
-        window.location.pathname = "/student/";
+
+    async function createProfessor() {
+        let professorNameInput = document.getElementById('professor-name');
+
+        if (professorNameInput.value === "") {
+            return;
+        }
+
+        await fetch(window.location.origin + '/rest/professor', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: professorNameInput.value,
+            }),
+        });
+
+        window.location.reload();
     }
+
+    async function deleteProfessors() {
+        let checkboxes = Array.from(document.getElementsByClassName('prof-checkbox'));
+
+        for (const checkbox of checkboxes) {
+            if (checkbox.checked) {
+                let id = checkbox.dataset.id;
+                let url = window.location.origin + '/rest/professor?id=' + id;
+                await fetch(url, {
+                method: 'DELETE',
+            });
+            }
+        }
+
+        window.location.reload();
+    }
+
+    async function deleteResearchFields() {
+        let checkboxes = Array.from(document.getElementsByClassName('research-field-checkbox'));
+
+        for (const checkbox of checkboxes) {
+            if (checkbox.checked) {
+                let id = checkbox.dataset.id;
+                let url = window.location.origin + '/rest/research-field?id=' + id;
+                await fetch(url, {
+                    method: 'DELETE',
+                });
+            }
+        }
+
+        window.location.reload();
+    }
+
 </script>
-{% endblock script %}
-
-{% block selection_a_header %}
-Prof
-{% endblock selection_a_header %}
-
-{% block selection_b_header %}
-Student
-{% endblock selection_b_header %}
+{% endblock pre_script %}

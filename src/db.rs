@@ -24,6 +24,13 @@ pub async fn create_research_field<T: AsRef<str>>(conn: &DbConn, name: T) -> Que
     .await
 }
 
+pub async fn get_research_fields(conn: &DbConn) -> QueryResult<Vec<ResearchField>> {
+    use schema::research_fields::dsl::*;
+
+    conn.run(|c| research_fields.select((id, name)).load::<ResearchField>(c))
+        .await
+}
+
 pub async fn get_research_field(
     conn: &DbConn,
     research_field_id: ID,
@@ -62,6 +69,13 @@ pub async fn get_professor(conn: &DbConn, professor_id: ID) -> QueryResult<Profe
     use schema::professors::dsl::*;
 
     conn.run(move |c| professors.find(professor_id).first(c))
+        .await
+}
+
+pub async fn get_professors(conn: &DbConn) -> QueryResult<Vec<Professor>> {
+    use schema::professors::dsl::*;
+
+    conn.run(|c| professors.select((id, name)).load::<Professor>(c))
         .await
 }
 

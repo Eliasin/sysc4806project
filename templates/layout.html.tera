@@ -6,11 +6,17 @@
     <link rel="stylesheet" type="text/css" href="/static/css/index.css"/> 
     {% block additional_head %}
     {% endblock additional_head %}
+
+    {% block pre_script %}
+    {% endblock pre_script %}
 </head>
 
 <body>
     {% block content %}
     {% endblock content %}
+
+    {% block post_script %}
+    {% endblock post_script %}
 </body>
 
 </html>
