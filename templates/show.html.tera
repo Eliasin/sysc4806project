@@ -1,4 +1,0 @@
-<h1>Buddy</h1>
-
-<p>Name: {{ buddy.name }}</p>
-<p>Number: {{ buddy.number }}</p>

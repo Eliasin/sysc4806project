@@ -1,0 +1,20 @@
+{% extends "selection_layout" %}
+
+{% block script %}
+<script>
+    function selectionA() {
+        window.location.pathname = "/prof/";
+    }
+    function selectionB() {
+        window.location.pathname = "/student/";
+    }
+</script>
+{% endblock script %}
+
+{% block selection_a_header %}
+Prof
+{% endblock selection_a_header %}
+
+{% block selection_b_header %}
+Student
+{% endblock selection_b_header %}
