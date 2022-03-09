@@ -1,3 +1,5 @@
+//! Defines the REST endpoints for the Graduate Admissions Management System API.
+
 use crate::db::DbConn;
 use crate::db::{self, ID};
 use crate::models::*;
@@ -6,11 +8,13 @@ use rocket::serde::json::Json;
 use rocket::Route;
 use serde::{Deserialize, Serialize};
 
+/// Type representing an id returned for newly created entities.
 #[derive(Serialize, Deserialize, Debug)]
 struct IdPayload {
     id: ID,
 }
 
+/// Endpoint for creating a new research field.
 #[post("/research-field", data = "<research_field>")]
 async fn create_research_field(
     conn: DbConn,
@@ -28,6 +32,7 @@ async fn create_research_field(
     }
 }
 
+/// Endpoint for getting a research field.
 #[get("/research-field?<id>")]
 async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>, Status> {
     match db::get_research_field(&conn, id).await {
@@ -39,6 +44,7 @@ async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>
     }
 }
 
+/// Endpoint for deleting a research field.
 #[delete("/research-field?<id>")]
 async fn delete_research_field(conn: DbConn, id: i32) -> Status {
     match db::delete_research_field(&conn, id).await {
@@ -53,6 +59,7 @@ async fn delete_research_field(conn: DbConn, id: i32) -> Status {
     }
 }
 
+/// Endpoint for creating a new professor.
 #[post("/professor", data = "<professor>")]
 async fn create_professor(
     conn: DbConn,
@@ -67,6 +74,7 @@ async fn create_professor(
     }
 }
 
+/// Endpoint for getting a professor.
 #[get("/professor?<id>")]
 async fn get_professor(conn: DbConn, id: i32) -> Result<Json<Professor>, Status> {
     match db::get_professor(&conn, id).await {
@@ -78,6 +86,7 @@ async fn get_professor(conn: DbConn, id: i32) -> Result<Json<Professor>, Status>
     }
 }
 
+/// Endpoint for deleting a professor.
 #[delete("/professor?<id>")]
 async fn delete_professor(conn: DbConn, id: i32) -> Status {
     match db::delete_professor(&conn, id).await {
@@ -89,6 +98,7 @@ async fn delete_professor(conn: DbConn, id: i32) -> Status {
     }
 }
 
+/// Endpoint for adding a research field to a professor.
 #[post("/professor/research-field?<prof_id>&<field_id>")]
 async fn add_researched_field_to_professor(conn: DbConn, prof_id: i32, field_id: i32) -> Status {
     match db::add_researched_field_to_professor(&conn, prof_id, field_id).await {
@@ -103,6 +113,7 @@ async fn add_researched_field_to_professor(conn: DbConn, prof_id: i32, field_id:
     }
 }
 
+/// Endpoint for getting a list of research fields for a professor.
 #[get("/professor/research-field?<prof_id>")]
 async fn get_fields_professor_researches(
     conn: DbConn,
@@ -120,6 +131,7 @@ async fn get_fields_professor_researches(
     }
 }
 
+/// Endpoint for removing a research field from a professor.
 #[delete("/professor/research-field?<prof_id>&<field_id>")]
 async fn remove_researched_field_from_professor(
     conn: DbConn,
@@ -138,6 +150,7 @@ async fn remove_researched_field_from_professor(
     }
 }
 
+/// Endpoint for creating a new applicant.
 #[post("/applicant", data = "<applicant>")]
 async fn create_applicant(
     conn: DbConn,
@@ -152,6 +165,7 @@ async fn create_applicant(
     }
 }
 
+/// Endpoint for getting an applicant.
 #[get("/applicant?<id>")]
 async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status> {
     match db::get_applicant(&conn, id).await {
@@ -163,6 +177,7 @@ async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status>
     }
 }
 
+/// Endpoint for deleting an applicant.
 #[delete("/applicant?<id>")]
 async fn delete_applicant(conn: DbConn, id: i32) -> Status {
     match db::delete_applicant(&conn, id).await {
@@ -174,6 +189,7 @@ async fn delete_applicant(conn: DbConn, id: i32) -> Status {
     }
 }
 
+/// Endpoint for adding an application to an applicant.
 #[post("/applicant/applications?<applicant_id>&<prof_id>")]
 async fn add_application_to_applicant(conn: DbConn, applicant_id: i32, prof_id: i32) -> Status {
     match db::add_application_to_applicant(&conn, applicant_id, prof_id).await {
@@ -188,6 +204,7 @@ async fn add_application_to_applicant(conn: DbConn, applicant_id: i32, prof_id: 
     }
 }
 
+/// Endpoint for getting a list of professors an applicant has applied to.
 #[get("/applicant/applications?<applicant_id>")]
 async fn get_profs_applicant_applied_to(
     conn: DbConn,
@@ -205,6 +222,7 @@ async fn get_profs_applicant_applied_to(
     }
 }
 
+/// Endpoint for removing an application from an applicant.
 #[delete("/applicant/applications?<applicant_id>&<prof_id>")]
 async fn remove_application_from_applicant(
     conn: DbConn,
@@ -223,6 +241,7 @@ async fn remove_application_from_applicant(
     }
 }
 
+/// Declaration of REST request routes.
 pub fn routes() -> Vec<Route> {
     routes![
         create_research_field,
@@ -243,6 +262,7 @@ pub fn routes() -> Vec<Route> {
     ]
 }
 
+/// REST endpoint tests.
 #[cfg(test)]
 mod test {
     use std::env::set_var;
@@ -261,6 +281,7 @@ mod test {
 
     use super::DbConn;
 
+    // Checks whether the current database is a testing database.
     fn is_testing_db<T: AsRef<str>>(url: T) -> bool {
         let lowercase = url.as_ref().to_ascii_lowercase();
         lowercase.contains("testing") || lowercase.contains("test")
@@ -296,6 +317,7 @@ mod test {
         .await;
     }
 
+    // Configures and connects the dabatase for testing.
     const DATABASE_URL_KEY: &'static str = "databases.db.url";
     async fn setup() -> Client {
         set_var("ROCKET_PROFILE", "testing");
@@ -334,6 +356,7 @@ mod test {
         serde_json::from_str(&body).expect("could not deserialize response body into JSON")
     }
 
+    // Tests the creation of a research field.
     #[rocket::async_test]
     async fn create_get_research_field() {
         let client = setup().await;

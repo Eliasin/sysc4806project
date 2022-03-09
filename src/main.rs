@@ -1,3 +1,5 @@
+//! Establishes application instance.
+
 #[macro_use]
 extern crate rocket;
 
@@ -13,6 +15,7 @@ pub mod models;
 pub mod rest;
 pub mod schema;
 
+/// Builds the rocket instance with rest and html routes.
 #[launch]
 fn rocket() -> _ {
     rocket::build()
