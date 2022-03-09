@@ -8,6 +8,8 @@ pub struct DbConn(diesel::PgConnection);
 
 pub type ID = i32;
 
+/// This function takes in a name of a reasearch field that can be converted to a string that is then 
+/// adds it to the database after generating a ResearchField ID.
 pub async fn create_research_field<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::research_fields;
 
@@ -24,6 +26,7 @@ pub async fn create_research_field<T: AsRef<str>>(conn: &DbConn, name: T) -> Que
     .await
 }
 
+/// This function returns every research field in the database
 pub async fn get_research_fields(conn: &DbConn) -> QueryResult<Vec<ResearchField>> {
     use schema::research_fields::dsl::*;
 
@@ -31,6 +34,8 @@ pub async fn get_research_fields(conn: &DbConn) -> QueryResult<Vec<ResearchField
         .await
 }
 
+/// This function takes in a ID of a reasearch field 
+/// that is then used to locate a specific research fild in the database and return it.
 pub async fn get_research_field(
     conn: &DbConn,
     research_field_id: ID,
@@ -41,6 +46,8 @@ pub async fn get_research_field(
         .await
 }
 
+/// This function takes in a ID of a reasearch field 
+/// that is then used to locate a specific research fild in the database and delete it.
 pub async fn delete_research_field(conn: &DbConn, research_field_id: ID) -> QueryResult<()> {
     use schema::research_fields::dsl::*;
 
@@ -49,6 +56,8 @@ pub async fn delete_research_field(conn: &DbConn, research_field_id: ID) -> Quer
     Ok(())
 }
 
+/// This function takes in a name of a professor that can be converted to a string that is then 
+/// adds it to the database after generating a professor ID.
 pub async fn create_professor<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::professors;
 
@@ -65,6 +74,8 @@ pub async fn create_professor<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryRes
     .await
 }
 
+/// This function takes in a ID of a professor
+/// that is then used to locate a specific professor in the database and return it.
 pub async fn get_professor(conn: &DbConn, professor_id: ID) -> QueryResult<Professor> {
     use schema::professors::dsl::*;
 
@@ -72,6 +83,7 @@ pub async fn get_professor(conn: &DbConn, professor_id: ID) -> QueryResult<Profe
         .await
 }
 
+// This function returns every professor in the database
 pub async fn get_professors(conn: &DbConn) -> QueryResult<Vec<Professor>> {
     use schema::professors::dsl::*;
 
@@ -79,6 +91,8 @@ pub async fn get_professors(conn: &DbConn) -> QueryResult<Vec<Professor>> {
         .await
 }
 
+/// This function takes in a ID of a professor
+/// that is then used to locate a specific professor in the database and return it.
 pub async fn delete_professor(conn: &DbConn, professor_id: ID) -> QueryResult<()> {
     use schema::professors::dsl::*;
 
@@ -87,6 +101,9 @@ pub async fn delete_professor(conn: &DbConn, professor_id: ID) -> QueryResult<()
     Ok(())
 }
 
+/// This function takes in a ID of a professor and the ID of a research field 
+/// which are used to assaign a research field to a professor and adds both ids to a new table
+/// in the database.
 pub async fn add_researched_field_to_professor(
     conn: &DbConn,
     professor_id: ID,
@@ -108,6 +125,8 @@ pub async fn add_researched_field_to_professor(
     Ok(())
 }
 
+/// This function takes in a ID of a professor
+/// which is then used to get all research fields linked to that professors ID
 pub async fn get_fields_professor_researches(
     conn: &DbConn,
     professor_id: ID,
@@ -127,6 +146,9 @@ pub async fn get_fields_professor_researches(
     .await
 }
 
+/// This function takes in a ID of a professor and the ID of a research field 
+/// which are used to find the row in the table that links the professor to that research field
+/// and then deletes it from the table
 pub async fn remove_researched_field_from_professor(
     conn: &DbConn,
     professor_id: ID,
@@ -141,6 +163,8 @@ pub async fn remove_researched_field_from_professor(
     Ok(())
 }
 
+/// This function takes in an applicant which is then inserted into the applicant
+/// table in the database
 pub async fn create_applicant(conn: &DbConn, applicant: NewApplicant) -> QueryResult<ID> {
     use schema::applicants;
 
@@ -153,6 +177,8 @@ pub async fn create_applicant(conn: &DbConn, applicant: NewApplicant) -> QueryRe
     .await
 }
 
+/// This function takes in an applicant ID which is then used to find the applicant in the
+/// database and return the applicant
 pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Applicant> {
     use schema::applicants::dsl::*;
 
@@ -160,6 +186,8 @@ pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Appli
         .await
 }
 
+/// This function takes in an applicant ID which is then used to find the applicant in the
+/// database and delete the applicant
 pub async fn delete_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<()> {
     use schema::applicants::dsl::*;
 
@@ -168,6 +196,8 @@ pub async fn delete_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<()
     Ok(())
 }
 
+/// This function takes in an applicant ID and proffesor ID which are then added to a new table showing
+/// specifiying that the applicant has applied to this professor.
 pub async fn add_application_to_applicant(
     conn: &DbConn,
     applicant_id: ID,
@@ -189,6 +219,8 @@ pub async fn add_application_to_applicant(
     Ok(())
 }
 
+/// This function takes in a applicant ID and uses that to find all professors that the 
+/// applicant has applied to and returns them in a list.
 pub async fn get_profs_applicant_applied_to(
     conn: &DbConn,
     applicant_id: ID,
@@ -208,6 +240,8 @@ pub async fn get_profs_applicant_applied_to(
     .await
 }
 
+/// This function takes in an applicant ID and proffesor ID which are then used to find the
+/// row in the table showing that they have applied to that professor and then deletes it.
 pub async fn remove_application_from_applicant(
     conn: &DbConn,
     applicant_id: ID,
