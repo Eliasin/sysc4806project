@@ -13,7 +13,7 @@ pub mod models;
 pub mod rest;
 pub mod schema;
 
-#[get("/")]
+#[get("/", format = "text/html")]
 pub async fn index() -> &'static str {
     "Hello World!"
 }
