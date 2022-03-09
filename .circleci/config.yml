@@ -52,10 +52,10 @@ jobs:
 workflows:
   rust-testing:
     jobs: 
-      # - rust-test
+      - rust-test
       - heroku/deploy-via-git:
           context:
             - testing
           force: true
-          # requires:
-          #   - rust-test
+          requires:
+            - rust-test
