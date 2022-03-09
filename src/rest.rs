@@ -1,4 +1,4 @@
-use crate::db::DbConn;
+use crate::db::{DbConn};
 use crate::db::{self, ID};
 use crate::models::*;
 use rocket::http::Status;
@@ -18,7 +18,10 @@ async fn create_research_field(
 ) -> Result<Json<IdPayload>, Status> {
     match db::create_research_field(&conn, research_field.into_inner().name).await {
         Ok(id) => Ok(Json(IdPayload { id })),
-        Err(_) => Err(Status::InternalServerError),
+        Err(e) => {
+            eprintln!("DB error occured while trying to create research field: {}", e);
+            Err(Status::InternalServerError)
+        },
     }
 }
 
@@ -26,12 +29,169 @@ async fn create_research_field(
 async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>, Status> {
     match db::get_research_field(&conn, id).await {
         Ok(research_field) => Ok(Json(research_field)),
-        Err(_) => Err(Status::InternalServerError),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get research field: {}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[delete("/research-field?<id>")]
+async fn delete_research_field(conn: DbConn, id: i32) -> Status {
+    match db::delete_research_field(&conn, id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to delete research field: {}", e);
+            Status::InternalServerError
+        },
+    }
+}
+
+#[post("/professor", data = "<professor>")]
+async fn create_professor(conn: DbConn, 
+    professor: Json<NewProfessor>,) -> Result<Json<IdPayload>, Status> {
+    match db::create_professor(&conn, professor.into_inner().name).await {
+        Ok(id) => Ok(Json(IdPayload { id })),
+        Err(e) => {
+            eprintln!("DB error occured while trying to create professor: {}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[get("/professor?<id>")]
+async fn get_professor(conn: DbConn, id: i32,) -> Result<Json<Professor>, Status> {
+    match db::get_professor(&conn, id).await {
+        Ok(professor) => Ok(Json(professor)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get professor: {}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[delete("/professor?<id>")]
+async fn delete_professor(conn: DbConn, id: i32) -> Status {
+    match db::delete_professor(&conn, id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to delete professor: {}", e);
+            Status::InternalServerError
+        },
+    }
+}
+
+#[post("/professor/research-field?<prof_id>&<field_id>")]
+async fn add_researched_field_to_professor(conn: DbConn, 
+    prof_id: i32, field_id: i32) -> Status {
+    match db::add_researched_field_to_professor(&conn, prof_id, field_id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to add researched field to professor: {}", e);
+            Status::InternalServerError
+        },
+    }
+}
+
+#[get("/professor/research-field?<prof_id>")]
+async fn get_fields_professor_researches(conn: DbConn, prof_id: i32) -> Result<Json<Vec<ResearchField>>, Status> {
+    match db::get_fields_professor_researches(&conn, prof_id).await {
+        Ok(research_fields) => Ok(Json(research_fields)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get fields professor researches: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
+#[delete("/professor/research-field?<prof_id>&<field_id>")]
+async fn remove_researched_field_from_professor(conn: DbConn, 
+    prof_id: i32, field_id: i32) -> Status {
+     match db::remove_researched_field_from_professor(&conn, prof_id, field_id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to add researched field to professor: {}", e);
+            Status::InternalServerError
+        },
+    }
+}
+
+#[post("/applicant", data = "<applicant>")]
+async fn create_applicant(conn: DbConn, 
+    applicant: Json<NewApplicant>,) -> Result<Json<IdPayload>, Status> {
+    match db::create_applicant(&conn, applicant.into_inner()).await {
+        Ok(id) => Ok(Json(IdPayload { id })),
+        Err(e) => {
+            eprintln!("DB error occured while trying to create applicant: {}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[get("/applicant?<id>")] 
+async fn get_applicant(conn: DbConn, id: i32,) -> Result<Json<Applicant>, Status> {
+    match db::get_applicant(&conn, id).await {
+        Ok(applicant) => Ok(Json(applicant)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get applicant: {}", e);
+            Err(Status::InternalServerError)
+        },
+    }
+}
+
+#[delete("/applicant?<id>")]
+async fn delete_applicant(conn: DbConn, id: i32) -> Status {
+    match db::delete_applicant(&conn, id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to delete applicant: {}", e);
+            Status::InternalServerError
+        },
+    }
+}
+
+#[post("/applicant/applications?<applicant_id>&<prof_id>")]
+async fn add_application_to_applicant(conn: DbConn, 
+    applicant_id: i32, prof_id: i32) -> Status {
+    match db::add_application_to_applicant(&conn, applicant_id, prof_id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to add application to applicant: {}", e);
+            Status::InternalServerError
+        },
+    }
+}
+
+#[get("/applicant/applications?<applicant_id>")]
+async fn get_profs_applicant_applied_to(conn: DbConn, applicant_id: i32) -> Result<Json<Vec<Professor>>, Status> {
+    match db::get_profs_applicant_applied_to(&conn, applicant_id).await {
+        Ok(professors) => Ok(Json(professors)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get profs applicant applied to: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
+#[delete("/applicant/applications?<applicant_id>&<prof_id>")]
+async fn remove_application_from_applicant(conn: DbConn, 
+    applicant_id: i32, prof_id: i32) -> Status {
+     match db::remove_application_from_applicant(&conn, applicant_id, prof_id).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to remove application from applicant: {}", e);
+            Status::InternalServerError
+        },
     }
 }
 
 pub fn routes() -> Vec<Route> {
-    routes![create_research_field, get_research_field]
+    routes![create_research_field, get_research_field, 
+    delete_research_field, create_professor, get_professor,
+    delete_professor, add_researched_field_to_professor,
+    get_fields_professor_researches, remove_researched_field_from_professor,
+    create_applicant, get_applicant, delete_applicant, add_application_to_applicant,
+    get_profs_applicant_applied_to, remove_application_from_applicant]
 }
 
 #[cfg(test)]
@@ -48,7 +208,6 @@ mod test {
         http::Status,
         local::asynchronous::{Client, LocalResponse},
         serde::DeserializeOwned,
-        Build, Rocket,
     };
 
     use super::DbConn;
