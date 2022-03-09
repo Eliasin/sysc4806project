@@ -1,13 +1,13 @@
 table! {
     applicants (id) {
         id -> Int4,
-        desired_field_id -> Nullable<Int4>,
-        name -> Nullable<Text>,
-        phone_number -> Nullable<Text>,
-        email -> Nullable<Text>,
-        cv_path -> Nullable<Text>,
-        diploma_path -> Nullable<Text>,
-        grade_audit_path -> Nullable<Text>,
+        desired_field_id -> Int4,
+        name -> Text,
+        phone_number -> Text,
+        email -> Text,
+        cv_path -> Text,
+        diploma_path -> Text,
+        grade_audit_path -> Text,
     }
 }
 
@@ -21,14 +21,14 @@ table! {
 table! {
     professors (id) {
         id -> Int4,
-        name -> Nullable<Varchar>,
+        name -> Text,
     }
 }
 
 table! {
     research_fields (id) {
         id -> Int4,
-        name -> Nullable<Varchar>,
+        name -> Text,
     }
 }
 
