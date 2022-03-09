@@ -8,13 +8,13 @@ fn index() -> Template {
     Template::render("index", &context.into_json())
 }
 
-#[get("/prof")]
+#[get("/prof", format = "text/html")]
 fn prof() -> Template {
     let context = Context::new();
     Template::render("prof-select", &context.into_json())
 }
 
-#[get("/student")]
+#[get("/student", format = "text/html")]
 fn student() -> Template {
     let context = Context::new();
     Template::render("student-select", &context.into_json())

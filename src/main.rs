@@ -20,6 +20,4 @@ fn rocket() -> _ {
         .mount("/", html::routes())
         .attach(Template::fairing())
         .attach(DbConn::fairing())
-    // .mount("/", routes![index])
-    // .mount("/styles", FileServer::from(relative!("templates/styles")))
 }
