@@ -1,0 +1,80 @@
+version: 2.1
+
+orbs: 
+  heroku: circleci/heroku@1.2.6
+
+commands:
+  configure-db:
+    steps:
+      - run: cargo install diesel_cli || true
+      - run: diesel migration run --database-url postgres://testuser:testpassword@localhost/sysc4806Testing
+  
+  configure-heroku-db:
+    steps:
+      - checkout
+      - run: cargo install diesel_cli || true
+      - run: diesel migration run --database-url $HEROKU_POSTGRES_URI
+
+  setup:
+    steps:
+          - checkout
+          - setup_remote_docker:
+              docker_layer_caching: true
+          - restore_cache:
+              key: '{{ checksum "Cargo.lock" }}'
+          - configure-db
+          - run: cargo build
+          - save_cache:
+              key: '{{ checksum "Cargo.lock" }}'
+              paths:
+                - target/debug/build
+                - ~/.cargo/bin
+
+  test:
+    steps:
+      - run: cargo test
+
+executors:
+  rust-docker:
+    docker:
+      - image: cimg/rust:1.59.0
+        environment:
+          PGHOST: 127.0.0.1
+          PGUSER: root
+          ROCKET_PROFILE: testing
+          ROCKET_DATABASES: '{db = { url = "postgres://testuser:testpassword@localhost/sysc4806Testing" }}'
+
+      - image: cimg/postgres:14.0
+        environment:
+          POSTGRES_USER: testuser
+          POSTGRESS_PASSWORD: testpassword
+          POSTGRES_DB: sysc4806Testing
+  
+  diesel-docker:
+    docker:
+      - image: cimg/rust:1.59.0  
+
+jobs:
+  rust-test:
+    executor: rust-docker-testing
+    steps:
+      - setup
+      - test
+  
+  configure-heroku-db:
+    executor: diesel-docker
+    steps:
+      - configure-heroku-db
+
+workflows:
+  rust-testing:
+    jobs: 
+      # - rust-test
+      - heroku/deploy-via-git:
+          context:
+            - testing
+          post-steps:
+            - configure-heroku-db
+          force: true
+          # requires:
+          #   - rust-test
