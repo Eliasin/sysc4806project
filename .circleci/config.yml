@@ -55,8 +55,6 @@ workflows:
     jobs: 
       - rust-test
       - heroku/deploy-via-git:
-          pre-step:
-            - run: sudo -u postgres psql -c "SET SESSION idle_in_transaction_session_timeout = '5min';"
           context:
             - testing
           force: true
