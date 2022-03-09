@@ -18,7 +18,13 @@ pub struct Professor {
     pub name: String,
 }
 
-#[derive(Queryable, Identifiable, Associations, PartialEq, Debug)]
+#[derive(Insertable, Debug)]
+#[table_name = "professors"]
+pub struct NewProfessor {
+    pub name: String,
+}
+
+#[derive(Queryable, Identifiable, Associations, PartialEq, Debug, Insertable)]
 #[primary_key(prof_id, field_id)]
 #[belongs_to(ResearchField, foreign_key = "field_id")]
 #[belongs_to(Professor, foreign_key = "prof_id")]
@@ -31,8 +37,8 @@ pub struct ProfessorResearchField {
 #[belongs_to(ResearchField, foreign_key = "desired_field_id")]
 pub struct Applicant {
     pub id: i32,
-    pub name: String,
     pub desired_field_id: i32,
+    pub name: String,
     pub phone_number: String,
     pub email: String,
     pub cv_path: String,
@@ -52,7 +58,7 @@ pub struct NewApplicant {
     pub grade_audit_path: String,
 }
 
-#[derive(Queryable, Identifiable, Associations, PartialEq, Debug)]
+#[derive(Queryable, Identifiable, Associations, PartialEq, Debug, Insertable)]
 #[primary_key(applicant_id, prof_id)]
 #[belongs_to(Applicant, foreign_key = "applicant_id")]
 #[belongs_to(Professor, foreign_key = "prof_id")]
