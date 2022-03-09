@@ -6,20 +6,12 @@ orbs:
 commands:
   configure-db:
     steps:
-      - run: cargo install diesel_cli || true
+      - run: cargo install diesel_cli --no-default-features --features postgres || true
       - run: diesel migration run --database-url postgres://testuser:testpassword@localhost/sysc4806Testing
-  
-  configure-heroku-db:
-    steps:
-      - checkout
-      - run: cargo install diesel_cli || true
-      - run: diesel migration run --database-url $HEROKU_POSTGRES_URI
 
   setup:
     steps:
           - checkout
-          - setup_remote_docker:
-              docker_layer_caching: true
           - restore_cache:
               key: '{{ checksum "Cargo.lock" }}'
           - configure-db
@@ -49,22 +41,13 @@ executors:
           POSTGRES_USER: testuser
           POSTGRESS_PASSWORD: testpassword
           POSTGRES_DB: sysc4806Testing
-  
-  diesel-docker:
-    docker:
-      - image: cimg/rust:1.59.0  
 
 jobs:
   rust-test:
-    executor: rust-docker-testing
+    executor: rust-docker
     steps:
       - setup
       - test
-  
-  configure-heroku-db:
-    executor: diesel-docker
-    steps:
-      - configure-heroku-db
 
 workflows:
   rust-testing:
@@ -73,8 +56,6 @@ workflows:
       - heroku/deploy-via-git:
           context:
             - testing
-          post-steps:
-            - configure-heroku-db
           force: true
           # requires:
           #   - rust-test
