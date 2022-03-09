@@ -5,7 +5,6 @@ extern crate rocket;
 extern crate diesel;
 
 use rocket_dyn_templates::Template;
-use sass_rocket_fairing::SassFairing;
 use rocket_dyn_templates::tera::Context;
 use db::DbConn;
 
@@ -40,7 +39,6 @@ fn rocket() -> _ {
         .mount("/", routes![index, prof, student])
         .attach(Template::fairing())
         .attach(DbConn::fairing())
-        .attach(SassFairing)
         // .mount("/", routes![index])
         // .mount("/styles", FileServer::from(relative!("templates/styles")))
 }
