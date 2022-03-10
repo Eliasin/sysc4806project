@@ -1,11 +1,11 @@
 //! Servers html templates and static files from the `templates` and `static` directories.
 
-use rocket::Route;
-use rocket_dyn_templates::tera::Context;
-use rocket_dyn_templates::Template;
 use crate::db;
 use crate::db::DbConn;
 use rocket::http::Status;
+use rocket::Route;
+use rocket_dyn_templates::tera::Context;
+use rocket_dyn_templates::Template;
 
 pub type TemplateResult = Result<Template, Status>;
 
