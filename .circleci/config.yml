@@ -60,3 +60,7 @@ workflows:
           force: true
           requires:
             - rust-test
+          filters:
+            branches:
+              only:
+                - master
