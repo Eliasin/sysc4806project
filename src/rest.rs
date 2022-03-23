@@ -99,6 +99,18 @@ async fn get_professor(conn: DbConn, id: i32) -> Result<Json<Professor>, Status>
     }
 }
 
+/// Endpoint for getting all professors.
+#[get("/professors")]
+async fn get_professors(conn: DbConn) -> Result<Json<Vec<Professor>>, Status> {
+    match db::get_professors(&conn).await {
+        Ok(v) => Ok(Json(v)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get professors: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 /// Endpoint for deleting a professor.
 #[delete("/professor?<id>")]
 async fn delete_professor(conn: DbConn, id: i32) -> Status {
@@ -458,6 +470,7 @@ pub fn routes() -> Vec<Route> {
         get_applicant_diploma,
         get_applicant_grade_audit,
         get_applicants_for_professor_with_status,
+        get_professors,
     ]
 }
 
