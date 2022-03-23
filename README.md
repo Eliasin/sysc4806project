@@ -6,6 +6,8 @@ Heroku Link: https://sysc4806-rust.herokuapp.com/
 
 Frontend Link: https://sysc4806project-frontend.vercel.app/
 
+Frontend Git: https://github.com/Eliasin/sysc4806project-frontend
+
 ## Deploying locally
 
 ```
