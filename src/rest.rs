@@ -1,8 +1,9 @@
 //! Defines the REST endpoints for the Graduate Admissions Management System API.
 
-use crate::db::DbConn;
-use crate::db::{self, ID};
+use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
+use crate::db::{ApplicantIDNameField, DbConn};
 use crate::models::*;
+use rocket::form::Form;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::Route;
@@ -143,6 +144,37 @@ async fn get_fields_professor_researches(
     }
 }
 
+#[get("/professor/applicants?<id>&<status>")]
+async fn get_applicants_for_professor_with_status(
+    conn: DbConn,
+    id: i32,
+    status: String,
+) -> Result<Json<Vec<ApplicantIDNameField>>, Status> {
+    match status.as_str() {
+        APPLICATION_ACCPETED => {}
+        APPLICATION_DENIED => {}
+        APPLICATION_PENDING => {}
+        _ => {
+            eprintln!(
+                "Client asked for bad status, no status known as: {}",
+                status
+            );
+            return Err(Status::BadRequest);
+        }
+    };
+
+    match db::get_applications_for_professor_with_status(&conn, id, status.clone()).await {
+        Ok(v) => Ok(Json(v)),
+        Err(e) => {
+            eprintln!(
+                "Error while retrieving applicants for professor with status {}: {}",
+                status, e
+            );
+            return Err(Status::InternalServerError);
+        }
+    }
+}
+
 /// Endpoint for removing a research field from a professor.
 #[delete("/professor/research-field?<prof_id>&<field_id>")]
 async fn remove_researched_field_from_professor(
@@ -228,6 +260,114 @@ async fn add_application_to_applicant(conn: DbConn, applicant_id: i32, prof_id: 
     }
 }
 
+#[derive(FromForm)]
+pub struct ApplicantFiles {
+    cv_file: Option<Vec<u8>>,
+    diploma_file: Option<Vec<u8>>,
+    grade_audit_file: Option<Vec<u8>>,
+}
+
+/// Endpoint for adding a cv file to an applicant.
+#[post("/applicant/files?<applicant_id>", data = "<files>")]
+async fn upload_applicant_files(
+    conn: DbConn,
+    applicant_id: i32,
+    files: Form<ApplicantFiles>,
+) -> Result<(), Status> {
+    if let Some(cv_file) = &files.cv_file {
+        if let Err(e) = db::upload_applicant_cv(&conn, applicant_id, cv_file.clone()).await {
+            eprintln!(
+                "DB error occured while trying to upload applicant cv: {}",
+                e
+            );
+
+            return Err(Status::InternalServerError);
+        }
+    }
+
+    if let Some(diploma_file) = &files.diploma_file {
+        if let Err(e) =
+            db::upload_applicant_diploma(&conn, applicant_id, diploma_file.clone()).await
+        {
+            eprintln!(
+                "DB error occured while trying to upload applicant diploma: {}",
+                e
+            );
+
+            return Err(Status::InternalServerError);
+        }
+    }
+
+    if let Some(grade_audit_file) = &files.grade_audit_file {
+        if let Err(e) =
+            db::upload_applicant_grade_audit(&conn, applicant_id, grade_audit_file.clone()).await
+        {
+            eprintln!(
+                "DB error occured while trying to upload applicant grade audit: {}",
+                e
+            );
+
+            return Err(Status::InternalServerError);
+        }
+    }
+
+    Ok(())
+}
+
+#[get("/applicant/files/cv?<applicant_id>")]
+async fn get_applicant_cv(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
+    let applicant = match db::get_applicant(&conn, applicant_id).await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("DB error while fetching applicant: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    match db::get_applicant_cv_blob(&conn, applicant).await {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            eprintln!("DB error while getting applicant cv blob: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    }
+}
+
+#[get("/applicant/files/diploma?<applicant_id>")]
+async fn get_applicant_diploma(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
+    let applicant = match db::get_applicant(&conn, applicant_id).await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("DB error while fetching applicant: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    match db::get_applicant_diploma_blob(&conn, applicant).await {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            eprintln!("DB error while getting applicant cv blob: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    }
+}
+
+#[get("/applicant/files/grade-audit?<applicant_id>")]
+async fn get_applicant_grade_audit(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
+    let applicant = match db::get_applicant(&conn, applicant_id).await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("DB error while fetching applicant: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    match db::get_applicant_grade_audit_blob(&conn, applicant).await {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            eprintln!("DB error while getting applicant cv blob: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    }
+}
+
 /// Endpoint for getting a list of professors an applicant has applied to.
 #[get("/applicant/applications?<applicant_id>")]
 async fn get_profs_applicant_applied_to(
@@ -284,7 +424,12 @@ pub fn routes() -> Vec<Route> {
         delete_applicant,
         add_application_to_applicant,
         get_profs_applicant_applied_to,
-        remove_application_from_applicant
+        remove_application_from_applicant,
+        upload_applicant_files,
+        get_applicant_cv,
+        get_applicant_diploma,
+        get_applicant_grade_audit,
+        get_applicants_for_professor_with_status,
     ]
 }
 
