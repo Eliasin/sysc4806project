@@ -249,6 +249,22 @@ async fn create_applicant(
     }
 }
 
+/// Endpoint for editing an applicant.
+#[put("/applicant?<app_id>", data = "<applicant>")]
+async fn edit_applicant(
+    conn: DbConn,
+    app_id: i32,
+    applicant: Json<NewApplicantEdit>,
+) -> Result<(), Status> {
+    match db::edit_applicant(&conn, app_id, applicant.into_inner()).await {
+        Ok(v) => Ok(()),
+        Err(e) => {
+            eprintln!("DB error occured while trying to edit applicant: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 /// Endpoint for getting an applicant.
 #[get("/applicant?<id>")]
 async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status> {
@@ -461,6 +477,7 @@ pub fn routes() -> Vec<Route> {
         create_applicant,
         get_applicant,
         get_applicants,
+        edit_applicant,
         delete_applicant,
         add_application_to_applicant,
         get_profs_applicant_applied_to,
