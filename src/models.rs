@@ -89,8 +89,7 @@ pub struct NewApplicant {
     pub email: String,
 }
 
-/// This type represents a request for editing an applicant. It does not include an ID
-/// as they are auto-generated.
+/// This type represents a request for editing an applicant. 
 #[derive(Insertable, Deserialize)]
 #[table_name = "applicants"]
 pub struct NewApplicantEdit {
@@ -98,6 +97,12 @@ pub struct NewApplicantEdit {
     pub desired_field_id: Option<i32>,
     pub phone_number: Option<String>,
     pub email: Option<String>,
+}
+
+/// This type represents a request for editing an professor.
+#[derive(Deserialize)]
+pub struct NewProfessorEdit {
+    pub name: String,
 }
 
 /// This type represents the relationship between an applicant and a professor that they

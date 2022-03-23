@@ -224,6 +224,19 @@ pub async fn edit_applicant(
     Ok(())
 }
 
+pub async fn edit_professor(conn: &DbConn, prof_id: ID, prof_data: NewProfessorEdit) -> QueryResult<()> {
+    use schema::professors::dsl::*;
+    
+    conn.run(move |c| {
+        diesel::update(professors.find(prof_id))
+        .set(name.eq(prof_data.name))
+        .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
 /// This function takes in an applicant ID which is then used to find the applicant in the
 /// database and return the applicant
 pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Applicant> {

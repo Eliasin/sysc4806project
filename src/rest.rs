@@ -265,6 +265,21 @@ async fn edit_applicant(
     }
 }
 
+#[put("/professor?<prof_id>", data = "<professor>")]
+async fn edit_professor(
+    conn: DbConn,
+    prof_id: i32,
+    professor: Json<NewProfessorEdit>,
+) -> Result<(), Status> {
+    match db::edit_professor(&conn, prof_id, professor.into_inner()).await {
+        Ok(v) => Ok(()),
+        Err(e) => {
+            eprintln!("DB error occured while trying to edit professor: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 /// Endpoint for getting an applicant.
 #[get("/applicant?<id>")]
 async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status> {
@@ -470,6 +485,7 @@ pub fn routes() -> Vec<Route> {
         delete_research_field,
         create_professor,
         get_professor,
+        edit_professor,
         delete_professor,
         add_researched_field_to_professor,
         get_fields_professor_researches,
