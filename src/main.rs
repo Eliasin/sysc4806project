@@ -38,9 +38,7 @@ mod fairings {
             res: &mut rocket::Response<'r>,
         ) {
             res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
-            res.set_header(Header::new(
-                "Access-Control-Allow-Methods", "*",
-            ));
+            res.set_header(Header::new("Access-Control-Allow-Methods", "*"));
             res.set_header(Header::new("Access-Control-Allow-Headers", "*"));
             res.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
         }
@@ -55,12 +53,16 @@ mod fairings {
 
 use fairings::CORS;
 
+#[options("/*")]
+pub async fn wildcard_options() {}
+
 /// Builds the rocket instance with rest and html routes.
 #[launch]
 fn rocket() -> _ {
     rocket::build()
         .mount("/rest", rest::routes())
         .mount("/", html::routes())
+        .mount("/", routes![wildcard_options])
         .attach(Template::fairing())
         .attach(DbConn::fairing())
         .attach(CORS::fairing())
