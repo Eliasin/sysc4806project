@@ -257,7 +257,7 @@ async fn edit_applicant(
     applicant: Json<NewApplicantEdit>,
 ) -> Result<(), Status> {
     match db::edit_applicant(&conn, app_id, applicant.into_inner()).await {
-        Ok(v) => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => {
             eprintln!("DB error occured while trying to edit applicant: {}", e);
             Err(Status::InternalServerError)

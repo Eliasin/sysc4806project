@@ -181,39 +181,42 @@ pub async fn create_applicant(conn: &DbConn, applicant: NewApplicant) -> QueryRe
 
 /// This function takes in applicant information which is then to and applicant in the applicant
 /// table in the database
-pub async fn edit_applicant(conn: &DbConn, app_id: ID, app_data: NewApplicantEdit) -> QueryResult<()> {
+pub async fn edit_applicant(
+    conn: &DbConn,
+    app_id: ID,
+    app_data: NewApplicantEdit,
+) -> QueryResult<()> {
     use schema::applicants::dsl::*;
 
-    
     if let Some(v) = app_data.name {
         conn.run(move |c| {
             diesel::update(applicants.find(app_id))
-            .set(name.eq(v))
-            .execute(c)
+                .set(name.eq(v))
+                .execute(c)
         })
         .await?;
     }
     if let Some(v) = app_data.email {
         conn.run(move |c| {
             diesel::update(applicants.find(app_id))
-            .set(email.eq(v))
-            .execute(c)
+                .set(email.eq(v))
+                .execute(c)
         })
         .await?;
     }
     if let Some(v) = app_data.phone_number {
         conn.run(move |c| {
             diesel::update(applicants.find(app_id))
-            .set(phone_number.eq(v))
-            .execute(c)
+                .set(phone_number.eq(v))
+                .execute(c)
         })
         .await?;
     }
     if let Some(v) = app_data.desired_field_id {
         conn.run(move |c| {
             diesel::update(applicants.find(app_id))
-            .set(desired_field_id.eq(v))
-            .execute(c)
+                .set(desired_field_id.eq(v))
+                .execute(c)
         })
         .await?;
     }
