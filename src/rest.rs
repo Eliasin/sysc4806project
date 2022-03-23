@@ -1,11 +1,15 @@
 //! Defines the REST endpoints for the Graduate Admissions Management System API.
 
+use crate::buckets::BucketManager;
 use crate::db::DbConn;
 use crate::db::{self, ID};
 use crate::models::*;
+use rocket::form::Form;
+use rocket::futures::lock::Mutex;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::Route;
+use rocket::State;
 use serde::{Deserialize, Serialize};
 
 /// Type representing an id returned for newly created entities.
@@ -228,6 +232,49 @@ async fn add_application_to_applicant(conn: DbConn, applicant_id: i32, prof_id: 
     }
 }
 
+#[derive(FromForm)]
+pub struct ApplicantCV {
+    cv_file: Vec<u8>,
+}
+
+/// Endpoint for adding a cv to an applicant. Partial failure of this operation is possible,
+/// but is not handled.
+#[post("/applicant/cv?<applicant_id>", data = "<cv>")]
+async fn upload_applicant_cv(
+    conn: DbConn,
+    bucket_manager: &State<Mutex<BucketManager>>,
+    applicant_id: i32,
+    cv: Form<ApplicantCV>,
+) -> Result<(), Status> {
+    let mut bucket_manager = bucket_manager.lock().await;
+    let buckets = match bucket_manager.get_buckets() {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Error occured when trying to initialize S3 buckets: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    let new_cv_path = match buckets
+        .applicant_files()
+        .add_applicant_cv(&cv.cv_file, applicant_id)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Error occured whule trying to add applicant CV: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    if let Err(e) = db::set_applicant_cv_path(&conn, applicant_id, new_cv_path).await {
+        eprintln!("Error occured while trying to set applicant CV path: {}", e);
+        return Err(Status::InternalServerError);
+    };
+
+    Ok(())
+}
+
 /// Endpoint for getting a list of professors an applicant has applied to.
 #[get("/applicant/applications?<applicant_id>")]
 async fn get_profs_applicant_applied_to(
@@ -284,7 +331,8 @@ pub fn routes() -> Vec<Route> {
         delete_applicant,
         add_application_to_applicant,
         get_profs_applicant_applied_to,
-        remove_application_from_applicant
+        remove_application_from_applicant,
+        upload_applicant_cv,
     ]
 }
 

@@ -8,7 +8,7 @@ pub struct DbConn(diesel::PgConnection);
 
 pub type ID = i32;
 
-/// This function takes in a name of a reasearch field that can be converted to a string that is then 
+/// This function takes in a name of a reasearch field that can be converted to a string that is then
 /// adds it to the database after generating a ResearchField ID.
 pub async fn create_research_field<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::research_fields;
@@ -34,7 +34,7 @@ pub async fn get_research_fields(conn: &DbConn) -> QueryResult<Vec<ResearchField
         .await
 }
 
-/// This function takes in a ID of a reasearch field 
+/// This function takes in a ID of a reasearch field
 /// that is then used to locate a specific research fild in the database and return it.
 pub async fn get_research_field(
     conn: &DbConn,
@@ -46,7 +46,7 @@ pub async fn get_research_field(
         .await
 }
 
-/// This function takes in a ID of a reasearch field 
+/// This function takes in a ID of a reasearch field
 /// that is then used to locate a specific research fild in the database and delete it.
 pub async fn delete_research_field(conn: &DbConn, research_field_id: ID) -> QueryResult<()> {
     use schema::research_fields::dsl::*;
@@ -56,7 +56,7 @@ pub async fn delete_research_field(conn: &DbConn, research_field_id: ID) -> Quer
     Ok(())
 }
 
-/// This function takes in a name of a professor that can be converted to a string that is then 
+/// This function takes in a name of a professor that can be converted to a string that is then
 /// adds it to the database after generating a professor ID.
 pub async fn create_professor<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::professors;
@@ -101,7 +101,7 @@ pub async fn delete_professor(conn: &DbConn, professor_id: ID) -> QueryResult<()
     Ok(())
 }
 
-/// This function takes in a ID of a professor and the ID of a research field 
+/// This function takes in a ID of a professor and the ID of a research field
 /// which are used to assaign a research field to a professor and adds both ids to a new table
 /// in the database.
 pub async fn add_researched_field_to_professor(
@@ -146,7 +146,7 @@ pub async fn get_fields_professor_researches(
     .await
 }
 
-/// This function takes in a ID of a professor and the ID of a research field 
+/// This function takes in a ID of a professor and the ID of a research field
 /// which are used to find the row in the table that links the professor to that research field
 /// and then deletes it from the table
 pub async fn remove_researched_field_from_professor(
@@ -190,8 +190,7 @@ pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Appli
 pub async fn get_applicants(conn: &DbConn) -> QueryResult<Vec<Applicant>> {
     use schema::applicants::dsl::*;
 
-    conn.run(|c| applicants.load::<Applicant>(c))
-        .await
+    conn.run(|c| applicants.load::<Applicant>(c)).await
 }
 
 /// This function takes in an applicant ID which is then used to find the applicant in the
@@ -203,6 +202,10 @@ pub async fn delete_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<()
         .await?;
     Ok(())
 }
+
+pub const APPLICATION_ACCPETED: &'static str = "ACCEPTED";
+pub const APPLICATION_DENIED: &'static str = "DENIED";
+pub const APPLICATION_PENDING: &'static str = "PENDING";
 
 /// This function takes in an applicant ID and proffesor ID which are then added to a new table showing
 /// specifiying that the applicant has applied to this professor.
@@ -216,6 +219,7 @@ pub async fn add_application_to_applicant(
     let new_student_applied_to = StudentAppliedTo {
         applicant_id: applicant_id.to_owned(),
         prof_id: professor_id.to_owned(),
+        status: APPLICATION_PENDING.to_string(),
     };
 
     conn.run(move |c| {
@@ -227,7 +231,7 @@ pub async fn add_application_to_applicant(
     Ok(())
 }
 
-/// This function takes in a applicant ID and uses that to find all professors that the 
+/// This function takes in a applicant ID and uses that to find all professors that the
 /// applicant has applied to and returns them in a list.
 pub async fn get_profs_applicant_applied_to(
     conn: &DbConn,
@@ -248,6 +252,59 @@ pub async fn get_profs_applicant_applied_to(
     .await
 }
 
+async fn set_applicant_application_status(
+    conn: &DbConn,
+    app_id: ID,
+    professor_id: ID,
+    new_status: String,
+) -> QueryResult<()> {
+    use schema::student_applied_to::dsl::*;
+
+    conn.run(move |c| {
+        diesel::update(student_applied_to.find((app_id, professor_id)))
+            .set(status.eq(new_status))
+            .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
+pub async fn accept_applicant_application(
+    conn: &DbConn,
+    app_id: ID,
+    professor_id: ID,
+) -> QueryResult<()> {
+    set_applicant_application_status(conn, app_id, professor_id, APPLICATION_ACCPETED.to_string())
+        .await
+}
+
+pub async fn deny_applicant_application(
+    conn: &DbConn,
+    app_id: ID,
+    professor_id: ID,
+) -> QueryResult<()> {
+    set_applicant_application_status(conn, app_id, professor_id, APPLICATION_DENIED.to_string())
+        .await
+}
+
+pub async fn set_applicant_cv_path(
+    conn: &DbConn,
+    applicant_id: ID,
+    new_cv_path: String,
+) -> QueryResult<()> {
+    use schema::applicants::dsl::*;
+
+    conn.run(move |c| {
+        diesel::update(applicants.find(applicant_id))
+            .set(cv_path.eq(new_cv_path))
+            .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
 /// This function takes in an applicant ID and proffesor ID which are then used to find the
 /// row in the table showing that they have applied to that professor and then deletes it.
 pub async fn remove_application_from_applicant(
@@ -262,4 +319,35 @@ pub async fn remove_application_from_applicant(
     })
     .await?;
     Ok(())
+}
+
+#[derive(Queryable)]
+pub struct ApplicantIDNameField {
+    pub id: i32,
+    name: String,
+    pub desired_field: String,
+}
+
+pub async fn get_applications_for_professor_with_status(
+    conn: &DbConn,
+    professor_id: ID,
+    status: String,
+) -> QueryResult<Vec<ApplicantIDNameField>> {
+    use schema::applicants::dsl::{
+        applicants, desired_field_id as app_desired_field_id, id as app_id, name as app_name,
+    };
+    use schema::research_fields::dsl::{id as rs_id, name as rs_name, research_fields};
+    use schema::student_applied_to::dsl::{
+        applicant_id as sa_applicant_id, prof_id as sa_prof_id, student_applied_to,
+    };
+
+    conn.run(move |c| {
+        student_applied_to
+            .filter(sa_prof_id.eq(professor_id))
+            .inner_join(applicants.on(app_id.eq(sa_applicant_id)))
+            .inner_join(research_fields.on(rs_id.eq(app_desired_field_id)))
+            .select((app_id, rs_name, app_name))
+            .load::<ApplicantIDNameField>(c)
+    })
+    .await
 }

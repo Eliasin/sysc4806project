@@ -90,4 +90,7 @@ pub struct NewApplicant {
 pub struct StudentAppliedTo {
     pub applicant_id: i32,
     pub prof_id: i32,
+    // Diesel does not have good support for Postgres enums, so we use strings for
+    // the application status
+    pub status: String,
 }

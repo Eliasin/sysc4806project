@@ -36,6 +36,7 @@ table! {
     student_applied_to (applicant_id, prof_id) {
         applicant_id -> Int4,
         prof_id -> Int4,
+        status -> Text,
     }
 }
 

@@ -7,9 +7,11 @@ extern crate rocket;
 extern crate diesel;
 
 use db::DbConn;
+use rocket::futures::lock::Mutex;
 use rocket_dyn_templates::Template;
 use rocket::fs::FileServer;
 
+pub mod buckets;
 pub mod db;
 pub mod html;
 pub mod models;
@@ -55,6 +57,7 @@ mod fairings {
     }
 }
 
+use buckets::BucketManager;
 use fairings::CORS;
 
 /// Builds the rocket instance with rest and html routes.
@@ -66,4 +69,5 @@ fn rocket() -> _ {
         .attach(Template::fairing())
         .attach(DbConn::fairing())
         .attach(CORS::fairing())
+        .manage(Mutex::new(BucketManager::new()))
 }
