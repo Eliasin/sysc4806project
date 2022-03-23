@@ -40,7 +40,7 @@ mod fairings {
             res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
             res.set_header(Header::new(
                 "Access-Control-Allow-Methods",
-                "POST, GET, PATCH, OPTIONS, DELETE",
+                "POST, GET, PUT, PATCH, OPTIONS, DELETE",
             ));
             res.set_header(Header::new("Access-Control-Allow-Headers", "*"));
             res.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
