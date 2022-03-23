@@ -53,7 +53,7 @@ mod fairings {
 
 use fairings::CORS;
 
-#[options("/*")]
+#[options("/<_..>")]
 pub async fn wildcard_options() {}
 
 /// Builds the rocket instance with rest and html routes.
@@ -61,8 +61,8 @@ pub async fn wildcard_options() {}
 fn rocket() -> _ {
     rocket::build()
         .mount("/rest", rest::routes())
+        .mount("/rest", routes![wildcard_options])
         .mount("/", html::routes())
-        .mount("/", routes![wildcard_options])
         .attach(Template::fairing())
         .attach(DbConn::fairing())
         .attach(CORS::fairing())
