@@ -186,6 +186,14 @@ pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Appli
         .await
 }
 
+// This function returns every applicant in the database
+pub async fn get_applicants(conn: &DbConn) -> QueryResult<Vec<Applicant>> {
+    use schema::applicants::dsl::*;
+
+    conn.run(|c| applicants.load::<Applicant>(c))
+        .await
+}
+
 /// This function takes in an applicant ID which is then used to find the applicant in the
 /// database and delete the applicant
 pub async fn delete_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<()> {

@@ -8,6 +8,7 @@ extern crate diesel;
 
 use db::DbConn;
 use rocket_dyn_templates::Template;
+use rocket::fs::FileServer;
 
 pub mod db;
 pub mod html;
@@ -40,7 +41,7 @@ mod fairings {
             res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
             res.set_header(Header::new(
                 "Access-Control-Allow-Methods",
-                "POST, GET, PATCH, OPTIONS",
+                "POST, GET, PATCH, OPTIONS, DELETE",
             ));
             res.set_header(Header::new("Access-Control-Allow-Headers", "*"));
             res.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
