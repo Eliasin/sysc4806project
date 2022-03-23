@@ -1,14 +1,16 @@
 use crate::models::*;
 use crate::schema;
+use anyhow::anyhow;
 use diesel::prelude::*;
 use rocket_sync_db_pools::{database, diesel};
+use serde::Serialize;
 
 #[database("db")]
 pub struct DbConn(diesel::PgConnection);
 
 pub type ID = i32;
 
-/// This function takes in a name of a reasearch field that can be converted to a string that is then 
+/// This function takes in a name of a reasearch field that can be converted to a string that is then
 /// adds it to the database after generating a ResearchField ID.
 pub async fn create_research_field<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::research_fields;
@@ -34,7 +36,7 @@ pub async fn get_research_fields(conn: &DbConn) -> QueryResult<Vec<ResearchField
         .await
 }
 
-/// This function takes in a ID of a reasearch field 
+/// This function takes in a ID of a reasearch field
 /// that is then used to locate a specific research fild in the database and return it.
 pub async fn get_research_field(
     conn: &DbConn,
@@ -46,7 +48,7 @@ pub async fn get_research_field(
         .await
 }
 
-/// This function takes in a ID of a reasearch field 
+/// This function takes in a ID of a reasearch field
 /// that is then used to locate a specific research fild in the database and delete it.
 pub async fn delete_research_field(conn: &DbConn, research_field_id: ID) -> QueryResult<()> {
     use schema::research_fields::dsl::*;
@@ -56,7 +58,7 @@ pub async fn delete_research_field(conn: &DbConn, research_field_id: ID) -> Quer
     Ok(())
 }
 
-/// This function takes in a name of a professor that can be converted to a string that is then 
+/// This function takes in a name of a professor that can be converted to a string that is then
 /// adds it to the database after generating a professor ID.
 pub async fn create_professor<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryResult<ID> {
     use schema::professors;
@@ -101,7 +103,7 @@ pub async fn delete_professor(conn: &DbConn, professor_id: ID) -> QueryResult<()
     Ok(())
 }
 
-/// This function takes in a ID of a professor and the ID of a research field 
+/// This function takes in a ID of a professor and the ID of a research field
 /// which are used to assaign a research field to a professor and adds both ids to a new table
 /// in the database.
 pub async fn add_researched_field_to_professor(
@@ -146,7 +148,7 @@ pub async fn get_fields_professor_researches(
     .await
 }
 
-/// This function takes in a ID of a professor and the ID of a research field 
+/// This function takes in a ID of a professor and the ID of a research field
 /// which are used to find the row in the table that links the professor to that research field
 /// and then deletes it from the table
 pub async fn remove_researched_field_from_professor(
@@ -190,8 +192,7 @@ pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Appli
 pub async fn get_applicants(conn: &DbConn) -> QueryResult<Vec<Applicant>> {
     use schema::applicants::dsl::*;
 
-    conn.run(|c| applicants.load::<Applicant>(c))
-        .await
+    conn.run(|c| applicants.load::<Applicant>(c)).await
 }
 
 /// This function takes in an applicant ID which is then used to find the applicant in the
@@ -203,6 +204,10 @@ pub async fn delete_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<()
         .await?;
     Ok(())
 }
+
+pub const APPLICATION_ACCPETED: &'static str = "ACCEPTED";
+pub const APPLICATION_DENIED: &'static str = "DENIED";
+pub const APPLICATION_PENDING: &'static str = "PENDING";
 
 /// This function takes in an applicant ID and proffesor ID which are then added to a new table showing
 /// specifiying that the applicant has applied to this professor.
@@ -216,6 +221,7 @@ pub async fn add_application_to_applicant(
     let new_student_applied_to = StudentAppliedTo {
         applicant_id: applicant_id.to_owned(),
         prof_id: professor_id.to_owned(),
+        status: APPLICATION_PENDING.to_string(),
     };
 
     conn.run(move |c| {
@@ -227,7 +233,7 @@ pub async fn add_application_to_applicant(
     Ok(())
 }
 
-/// This function takes in a applicant ID and uses that to find all professors that the 
+/// This function takes in a applicant ID and uses that to find all professors that the
 /// applicant has applied to and returns them in a list.
 pub async fn get_profs_applicant_applied_to(
     conn: &DbConn,
@@ -248,6 +254,159 @@ pub async fn get_profs_applicant_applied_to(
     .await
 }
 
+/// Sets an applicant's application status.
+async fn set_applicant_application_status(
+    conn: &DbConn,
+    app_id: ID,
+    professor_id: ID,
+    new_status: String,
+) -> QueryResult<()> {
+    use schema::student_applied_to::dsl::*;
+
+    conn.run(move |c| {
+        diesel::update(student_applied_to.find((app_id, professor_id)))
+            .set(status.eq(new_status))
+            .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Accepts an applicant's application.
+pub async fn accept_applicant_application(
+    conn: &DbConn,
+    app_id: ID,
+    professor_id: ID,
+) -> QueryResult<()> {
+    set_applicant_application_status(conn, app_id, professor_id, APPLICATION_ACCPETED.to_string())
+        .await
+}
+
+/// Denies an applicant's application.
+pub async fn deny_applicant_application(
+    conn: &DbConn,
+    app_id: ID,
+    professor_id: ID,
+) -> QueryResult<()> {
+    set_applicant_application_status(conn, app_id, professor_id, APPLICATION_DENIED.to_string())
+        .await
+}
+
+/// Uploads a file blob for an applicant.
+async fn upload_applicant_blob(conn: &DbConn, blob: Vec<u8>) -> QueryResult<ID> {
+    use schema::applicant_blobs;
+
+    conn.run(move |c| {
+        diesel::insert_into(applicant_blobs::table)
+            .values(NewApplicantBlob { data_blob: blob })
+            .returning(schema::applicant_blobs::id)
+            .get_result(c)
+    })
+    .await
+}
+
+/// Uploads a cv blob for an applicant.
+pub async fn upload_applicant_cv(conn: &DbConn, applicant_id: ID, cv: Vec<u8>) -> QueryResult<()> {
+    use schema::applicants::dsl::{applicants as applicants_dsl, cv_blob_id as app_cv_blob_id};
+
+    let blob_id = upload_applicant_blob(conn, cv).await?;
+
+    conn.run(move |c| {
+        diesel::update(applicants_dsl.find(applicant_id))
+            .set(app_cv_blob_id.eq(blob_id))
+            .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Uploads a diploma blob for an applicant.
+pub async fn upload_applicant_diploma(
+    conn: &DbConn,
+    applicant_id: ID,
+    diploma: Vec<u8>,
+) -> QueryResult<()> {
+    use schema::applicants::dsl::{
+        applicants as applicants_dsl, diploma_blob_id as app_diploma_blob_id,
+    };
+
+    let blob_id = upload_applicant_blob(conn, diploma).await?;
+
+    conn.run(move |c| {
+        diesel::update(applicants_dsl.find(applicant_id))
+            .set(app_diploma_blob_id.eq(blob_id))
+            .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Uploads a grade audit blob for an applicant.
+pub async fn upload_applicant_grade_audit(
+    conn: &DbConn,
+    applicant_id: ID,
+    grade_audit: Vec<u8>,
+) -> QueryResult<()> {
+    use schema::applicants::dsl::{
+        applicants as applicants_dsl, grade_audit_blob_id as app_grade_audit_blob_id,
+    };
+
+    let blob_id = upload_applicant_blob(conn, grade_audit).await?;
+
+    conn.run(move |c| {
+        diesel::update(applicants_dsl.find(applicant_id))
+            .set(app_grade_audit_blob_id.eq(blob_id))
+            .execute(c)
+    })
+    .await?;
+
+    Ok(())
+}
+
+/// Gets an applicant blob of data given its ID.
+async fn get_applicant_blob(conn: &DbConn, blob_id: ID) -> QueryResult<Vec<u8>> {
+    use schema::applicant_blobs::dsl::*;
+
+    conn.run(move |c| applicant_blobs.find(blob_id).select(data_blob).first(c))
+        .await
+}
+
+/// Gets an applicant's CV as blob of data.
+pub async fn get_applicant_cv_blob(conn: &DbConn, applicant: Applicant) -> anyhow::Result<Vec<u8>> {
+    if let Some(v) = applicant.cv_blob_id {
+        Ok(get_applicant_blob(conn, v).await?)
+    } else {
+        Err(anyhow!("Applicant does not have a CV"))
+    }
+}
+
+/// Gets an applicant's diploma as blob of data.
+pub async fn get_applicant_diploma_blob(
+    conn: &DbConn,
+    applicant: Applicant,
+) -> anyhow::Result<Vec<u8>> {
+    if let Some(v) = applicant.diploma_blob_id {
+        Ok(get_applicant_blob(conn, v).await?)
+    } else {
+        Err(anyhow!("Applicant does not have a diploma"))
+    }
+}
+
+/// Gets an applicant's grade audit as blob of data.
+pub async fn get_applicant_grade_audit_blob(
+    conn: &DbConn,
+    applicant: Applicant,
+) -> anyhow::Result<Vec<u8>> {
+    if let Some(v) = applicant.grade_audit_blob_id {
+        Ok(get_applicant_blob(conn, v).await?)
+    } else {
+        Err(anyhow!("Applicant does not have a grade audit"))
+    }
+}
+
 /// This function takes in an applicant ID and proffesor ID which are then used to find the
 /// row in the table showing that they have applied to that professor and then deletes it.
 pub async fn remove_application_from_applicant(
@@ -262,4 +421,37 @@ pub async fn remove_application_from_applicant(
     })
     .await?;
     Ok(())
+}
+
+#[derive(Queryable, Serialize)]
+pub struct ApplicantIDNameField {
+    pub id: i32,
+    name: String,
+    pub desired_field: String,
+}
+
+pub async fn get_applications_for_professor_with_status(
+    conn: &DbConn,
+    professor_id: ID,
+    status: String,
+) -> QueryResult<Vec<ApplicantIDNameField>> {
+    use schema::applicants::dsl::{
+        applicants, desired_field_id as app_desired_field_id, id as app_id, name as app_name,
+    };
+    use schema::research_fields::dsl::{id as rs_id, name as rs_name, research_fields};
+    use schema::student_applied_to::dsl::{
+        applicant_id as sa_applicant_id, prof_id as sa_prof_id, status as sa_status,
+        student_applied_to,
+    };
+
+    conn.run(move |c| {
+        student_applied_to
+            .filter(sa_prof_id.eq(professor_id))
+            .filter(sa_status.eq(status))
+            .inner_join(applicants.on(app_id.eq(sa_applicant_id)))
+            .inner_join(research_fields.on(rs_id.eq(app_desired_field_id)))
+            .select((app_id, rs_name, app_name))
+            .load::<ApplicantIDNameField>(c)
+    })
+    .await
 }

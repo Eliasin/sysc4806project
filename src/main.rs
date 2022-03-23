@@ -8,7 +8,6 @@ extern crate diesel;
 
 use db::DbConn;
 use rocket_dyn_templates::Template;
-use rocket::fs::FileServer;
 
 pub mod db;
 pub mod html;

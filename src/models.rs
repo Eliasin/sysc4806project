@@ -51,6 +51,18 @@ pub struct ProfessorResearchField {
     pub field_id: i32,
 }
 
+#[derive(Queryable, Identifiable, Associations, PartialEq, Debug, Serialize)]
+pub struct ApplicantBlob {
+    pub id: i32,
+    pub data_blob: Vec<u8>,
+}
+
+#[derive(Insertable, Deserialize)]
+#[table_name = "applicant_blobs"]
+pub struct NewApplicantBlob {
+    pub data_blob: Vec<u8>,
+}
+
 /// This type represents a graduate applicant and includes information about their
 /// name, desired field, application details, etc. They are uniquely identified by ID.
 #[derive(Queryable, Identifiable, Associations, PartialEq, Debug, Serialize)]
@@ -61,9 +73,9 @@ pub struct Applicant {
     pub name: String,
     pub phone_number: String,
     pub email: String,
-    pub cv_path: String,
-    pub diploma_path: String,
-    pub grade_audit_path: String,
+    pub cv_blob_id: Option<i32>,
+    pub diploma_blob_id: Option<i32>,
+    pub grade_audit_blob_id: Option<i32>,
 }
 
 /// This type represents a request for a new applicant. It does not include an ID
@@ -75,9 +87,6 @@ pub struct NewApplicant {
     pub desired_field_id: i32,
     pub phone_number: String,
     pub email: String,
-    pub cv_path: String,
-    pub diploma_path: String,
-    pub grade_audit_path: String,
 }
 
 /// This type represents the relationship between an applicant and a professor that they
@@ -90,4 +99,7 @@ pub struct NewApplicant {
 pub struct StudentAppliedTo {
     pub applicant_id: i32,
     pub prof_id: i32,
+    // Diesel does not have good support for Postgres enums, so we use strings for
+    // the application status
+    pub status: String,
 }

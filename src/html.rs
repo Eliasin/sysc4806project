@@ -75,7 +75,7 @@ pub async fn applicant_create(conn: DbConn) -> TemplateResult {
                         return Err(Status::InternalServerError);
                     }
                 };
-            },
+            }
             Err(e) => {
                 eprintln!("DB error while creating research field: {}", e);
                 return Err(Status::InternalServerError);
