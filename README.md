@@ -4,6 +4,8 @@ CircleCI Link: https://app.circleci.com/pipelines/github/Eliasin/sysc4806project
 
 Heroku Link: https://sysc4806-rust.herokuapp.com/
 
+Frontend Link: https://sysc4806project-frontend.vercel.app/
+
 ## Deploying locally
 
 ```
