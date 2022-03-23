@@ -100,6 +100,14 @@ pub struct NewApplicantEdit {
     pub email: Option<String>,
 }
 
+/// This type represents a request for editing an professor. It does not include an ID
+/// as they are auto-generated.
+#[derive(Insertable, Deserialize)]
+#[table_name = "professors"]
+pub struct NewProfessorEdit {
+    pub name: Option<String>,
+}
+
 /// This type represents the relationship between an applicant and a professor that they
 /// applied to. There are no extra attributes to this relationship.
 #[derive(Queryable, Identifiable, Associations, PartialEq, Debug, Insertable)]
