@@ -194,6 +194,34 @@ async fn remove_researched_field_from_professor(
     }
 }
 
+#[post("/professor/application/accept?<applicant_id>&<professor_id>")]
+pub async fn accept_application(
+    conn: DbConn,
+    applicant_id: i32,
+    professor_id: i32,
+) -> Result<(), Status> {
+    if let Err(e) = db::accept_applicant_application(&conn, applicant_id, professor_id).await {
+        eprintln!("Error while accepting an applicant's application: {}", e);
+        Err(Status::InternalServerError)
+    } else {
+        Ok(())
+    }
+}
+
+#[post("/professor/application/deny?<applicant_id>&<professor_id>")]
+pub async fn deny_application(
+    conn: DbConn,
+    applicant_id: i32,
+    professor_id: i32,
+) -> Result<(), Status> {
+    if let Err(e) = db::deny_applicant_application(&conn, applicant_id, professor_id).await {
+        eprintln!("Error while denying an applicant's application: {}", e);
+        Err(Status::InternalServerError)
+    } else {
+        Ok(())
+    }
+}
+
 /// Endpoint for creating a new applicant.
 #[post("/applicant", data = "<applicant>")]
 async fn create_applicant(
