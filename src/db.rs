@@ -223,16 +223,13 @@ pub async fn edit_applicant(conn: &DbConn, app_id: ID, app_data: NewApplicantEdi
 
 pub async fn edit_professor(conn: &DbConn, prof_id: ID, prof_data: NewProfessorEdit) -> QueryResult<()> {
     use schema::professors::dsl::*;
-
     
-    if let Some(v) = prof_data.name {
-        conn.run(move |c| {
-            diesel::update(professors.find(prof_id))
-            .set(name.eq(v))
-            .execute(c)
-        })
-        .await?;
-    }
+    conn.run(move |c| {
+        diesel::update(professors.find(prof_id))
+        .set(name.eq(prof_data.name))
+        .execute(c)
+    })
+    .await?;
 
     Ok(())
 }
