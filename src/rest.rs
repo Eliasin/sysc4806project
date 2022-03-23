@@ -44,6 +44,18 @@ async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>
     }
 }
 
+/// Endpoint for getting all research fields.
+#[get("/research-fields")]
+async fn get_research_fields(conn: DbConn) -> Result<Json<Vec<ResearchField>>, Status> {
+    match db::get_research_fields(&conn).await {
+        Ok(research_fields) => Ok(Json(research_fields)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get research field: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 /// Endpoint for deleting a research field.
 #[delete("/research-field?<id>")]
 async fn delete_research_field(conn: DbConn, id: i32) -> Status {
@@ -177,6 +189,18 @@ async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status>
     }
 }
 
+/// Endpoint for getting all applicants.
+#[get("/applicants")]
+async fn get_applicants(conn: DbConn) -> Result<Json<Vec<Applicant>>, Status> {
+    match db::get_applicants(&conn).await {
+        Ok(applicants) => Ok(Json(applicants)),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get research field: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 /// Endpoint for deleting an applicant.
 #[delete("/applicant?<id>")]
 async fn delete_applicant(conn: DbConn, id: i32) -> Status {
@@ -246,6 +270,7 @@ pub fn routes() -> Vec<Route> {
     routes![
         create_research_field,
         get_research_field,
+        get_research_fields,
         delete_research_field,
         create_professor,
         get_professor,
@@ -255,6 +280,7 @@ pub fn routes() -> Vec<Route> {
         remove_researched_field_from_professor,
         create_applicant,
         get_applicant,
+        get_applicants,
         delete_applicant,
         add_application_to_applicant,
         get_profs_applicant_applied_to,

@@ -1,3 +1,5 @@
 /target
+/static/css/*.css
 Rocket.toml
 Rocket.testing.toml
+node_modules
