@@ -3,10 +3,10 @@
 use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
 use crate::models::*;
-use rocket::form::Form;
+use rocket::data::ByteUnit;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use rocket::Route;
+use rocket::{Data, Route};
 use serde::{Deserialize, Serialize};
 
 /// Type representing an id returned for newly created entities.
@@ -272,7 +272,7 @@ async fn edit_professor(
     professor: Json<NewProfessorEdit>,
 ) -> Result<(), Status> {
     match db::edit_professor(&conn, prof_id, professor.into_inner()).await {
-        Ok(v) => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => {
             eprintln!("DB error occured while trying to edit professor: {}", e);
             Err(Status::InternalServerError)
@@ -331,55 +331,113 @@ async fn add_application_to_applicant(conn: DbConn, applicant_id: i32, prof_id: 
     }
 }
 
-#[derive(FromForm)]
-pub struct ApplicantFiles {
-    cv_file: Option<Vec<u8>>,
-    diploma_file: Option<Vec<u8>>,
-    grade_audit_file: Option<Vec<u8>>,
+fn get_file_upload_max() -> ByteUnit {
+    ByteUnit::MiB * 2
 }
 
 /// Endpoint for adding a cv file to an applicant.
-#[post("/applicant/files?<applicant_id>", data = "<files>")]
-async fn upload_applicant_files(
+#[post("/applicant/files/cv?<applicant_id>", data = "<file>")]
+async fn upload_applicant_cv(
     conn: DbConn,
     applicant_id: i32,
-    files: Form<ApplicantFiles>,
+    file: Data<'_>,
 ) -> Result<(), Status> {
-    if let Some(cv_file) = &files.cv_file {
-        if let Err(e) = db::upload_applicant_cv(&conn, applicant_id, cv_file.clone()).await {
-            eprintln!(
-                "DB error occured while trying to upload applicant cv: {}",
-                e
-            );
-
+    let file = match file.open(get_file_upload_max()).into_bytes().await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("IO error occured while streaming file upload: {}", e);
             return Err(Status::InternalServerError);
         }
+    };
+
+    if !file.is_complete() {
+        eprintln!(
+            "File upload is too large, max size is: {}",
+            get_file_upload_max()
+        );
+        return Err(Status::PayloadTooLarge);
     }
 
-    if let Some(diploma_file) = &files.diploma_file {
-        if let Err(e) =
-            db::upload_applicant_diploma(&conn, applicant_id, diploma_file.clone()).await
-        {
-            eprintln!(
-                "DB error occured while trying to upload applicant diploma: {}",
-                e
-            );
+    let file = file.into_inner();
+    if let Err(e) = db::upload_applicant_cv(&conn, applicant_id, file).await {
+        eprintln!(
+            "DB error occured while trying to upload applicant cv: {}",
+            e
+        );
 
-            return Err(Status::InternalServerError);
-        }
+        return Err(Status::InternalServerError);
     }
 
-    if let Some(grade_audit_file) = &files.grade_audit_file {
-        if let Err(e) =
-            db::upload_applicant_grade_audit(&conn, applicant_id, grade_audit_file.clone()).await
-        {
-            eprintln!(
-                "DB error occured while trying to upload applicant grade audit: {}",
-                e
-            );
+    Ok(())
+}
 
+/// Endpoint for adding a diploma file to an applicant.
+#[post("/applicant/files/diploma?<applicant_id>", data = "<file>")]
+async fn upload_applicant_diploma(
+    conn: DbConn,
+    applicant_id: i32,
+    file: Data<'_>,
+) -> Result<(), Status> {
+    let file = match file.open(get_file_upload_max()).into_bytes().await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("IO error occured while streaming file upload: {}", e);
             return Err(Status::InternalServerError);
         }
+    };
+
+    if !file.is_complete() {
+        eprintln!(
+            "File upload is too large, max size is: {}",
+            get_file_upload_max()
+        );
+        return Err(Status::PayloadTooLarge);
+    }
+
+    let file = file.into_inner();
+    if let Err(e) = db::upload_applicant_diploma(&conn, applicant_id, file).await {
+        eprintln!(
+            "DB error occured while trying to upload applicant diploma: {}",
+            e
+        );
+
+        return Err(Status::InternalServerError);
+    }
+
+    Ok(())
+}
+
+/// Endpoint for adding a cv file to an applicant.
+#[post("/applicant/files/grade-audit?<applicant_id>", data = "<file>")]
+async fn upload_applicant_grade_audit(
+    conn: DbConn,
+    applicant_id: i32,
+    file: Data<'_>,
+) -> Result<(), Status> {
+    let file = match file.open(get_file_upload_max()).into_bytes().await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("IO error occured while streaming file upload: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    if !file.is_complete() {
+        eprintln!(
+            "File upload is too large, max size is: {}",
+            get_file_upload_max()
+        );
+        return Err(Status::PayloadTooLarge);
+    }
+
+    let file = file.into_inner();
+    if let Err(e) = db::upload_applicant_grade_audit(&conn, applicant_id, file).await {
+        eprintln!(
+            "DB error occured while trying to upload applicant grade audit: {}",
+            e
+        );
+
+        return Err(Status::InternalServerError);
     }
 
     Ok(())
@@ -498,7 +556,9 @@ pub fn routes() -> Vec<Route> {
         add_application_to_applicant,
         get_profs_applicant_applied_to,
         remove_application_from_applicant,
-        upload_applicant_files,
+        upload_applicant_cv,
+        upload_applicant_diploma,
+        upload_applicant_grade_audit,
         get_applicant_cv,
         get_applicant_diploma,
         get_applicant_grade_audit,
