@@ -1,9 +1,0 @@
-{% extends "layout" %}
-
-{% block content %}
-<div id="create-container">
-    <form id="prof-form">
-        
-    </form>
-</div>
-{% endblock content %}
