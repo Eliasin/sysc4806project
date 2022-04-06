@@ -858,29 +858,6 @@ pub async fn get_admin_exists(conn: DbConn) -> Result<Json<AdminExistsResult>, S
     }
 }
 
-#[get("/test/email")]
-pub async fn test_email(conn: DbConn) -> Status {
-    let applicant = match db::get_applicant(&conn, 1).await {
-        Ok(v) => match v {
-            Some(v) => v,
-            None => return Status::NotFound,
-        },
-        Err(e) => {
-            eprintln!("Error while accepting an applicant's application: {}", e);
-            return Status::InternalServerError;
-        }
-    };
-
-    if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Accepted) {
-        eprintln!(
-            "Error occured while trying to send an email to the applicant: {}",
-            e
-        );
-        return Status::InternalServerError;
-    }
-    Status::Ok
-}
-
 /// Declaration of REST request routes.
 pub fn routes() -> Vec<Route> {
     routes![
@@ -916,7 +893,6 @@ pub fn routes() -> Vec<Route> {
         create_applicant_login,
         create_professor_login,
         get_admin_exists,
-        test_email,
         get_login_type,
         accept_application,
         deny_application,

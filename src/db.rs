@@ -183,11 +183,7 @@ pub async fn create_applicant(conn: &DbConn, applicant: NewApplicant) -> QueryRe
 
 /// This function takes in applicant information which is then to and applicant in the applicant
 /// table in the database
-pub async fn edit_applicant(
-    conn: &DbConn,
-    app_id: ID,
-    app_data: NewApplicantEdit,
-) -> QueryResult<()> {
+pub async fn edit_applicant(conn: &DbConn, app_id: ID, app_data: ApplicantEdit) -> QueryResult<()> {
     use schema::applicants::dsl::*;
 
     if let Some(v) = app_data.name {
@@ -229,7 +225,7 @@ pub async fn edit_applicant(
 pub async fn edit_professor(
     conn: &DbConn,
     prof_id: ID,
-    prof_data: NewProfessorEdit,
+    prof_data: ProfessorEdit,
 ) -> QueryResult<()> {
     use schema::professors::dsl::*;
 
@@ -490,8 +486,9 @@ pub async fn remove_application_from_applicant(
 #[derive(Queryable, Serialize)]
 pub struct ApplicantIDNameField {
     pub id: i32,
-    name: String,
     pub desired_field: String,
+    pub name: String,
+    pub email: String,
 }
 
 pub async fn get_applications_for_professor_with_status(
@@ -500,7 +497,7 @@ pub async fn get_applications_for_professor_with_status(
     status: String,
 ) -> QueryResult<Vec<ApplicantIDNameField>> {
     use schema::applicants::dsl::{
-        applicants, desired_field_id as app_desired_field_id, id as app_id, name as app_name,
+        applicants, desired_field_id as app_desired_field_id, email, id as app_id, name as app_name,
     };
     use schema::research_fields::dsl::{id as rs_id, name as rs_name, research_fields};
     use schema::student_applied_to::dsl::{
@@ -514,7 +511,7 @@ pub async fn get_applications_for_professor_with_status(
             .filter(sa_status.eq(status))
             .inner_join(applicants.on(app_id.eq(sa_applicant_id)))
             .inner_join(research_fields.on(rs_id.eq(app_desired_field_id)))
-            .select((app_id, rs_name, app_name))
+            .select((app_id, rs_name, app_name, email))
             .load::<ApplicantIDNameField>(c)
     })
     .await
