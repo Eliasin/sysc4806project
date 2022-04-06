@@ -15,7 +15,7 @@ commands:
           - restore_cache:
               key: '{{ checksum "Cargo.lock" }}'
           - configure-db
-          - run: cargo build
+          - run: cargo +nightly build
           - save_cache:
               key: '{{ checksum "Cargo.lock" }}'
               paths:
@@ -52,7 +52,6 @@ jobs:
 
 format:
   parameters:
-    nightly-toolchain: true
     with-cache: true
 
 workflows:
