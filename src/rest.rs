@@ -690,7 +690,7 @@ async fn remove_application_from_applicant(
 }
 
 /// The Login struct represents the HTML form query for a customer login.
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Login {
     pub username: String,
     pub password: String,
@@ -731,7 +731,7 @@ pub async fn get_login_type(
     Json(SessionTypeResponse { session_type })
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct LoginResponse {
     session_token: String,
 }
@@ -906,12 +906,12 @@ mod test {
 
     use crate::{
         models::{NewResearchField, ResearchField},
-        rest::IdPayload,
+        rest::{IdPayload, Login, LoginResponse},
         rocket,
     };
     use diesel::RunQueryDsl;
     use rocket::{
-        http::Status,
+        http::{Header, Status},
         local::asynchronous::{Client, LocalResponse},
         serde::DeserializeOwned,
     };
@@ -998,6 +998,21 @@ mod test {
     async fn create_get_research_field() {
         let client = setup().await;
 
+        let login = Login {
+            username: "testing".to_string(),
+            password: "test".to_string(),
+        };
+
+        client
+            .post("/rest/login/admin")
+            .json(&login)
+            .dispatch()
+            .await;
+
+        let login_response = client.post("/rest/login").json(&login).dispatch().await;
+
+        let session_token = to_json_workaround::<LoginResponse>(login_response).await;
+
         let biology = NewResearchField {
             name: "Biology".to_string(),
         };
@@ -1005,6 +1020,10 @@ mod test {
         println!("Sending first create message...");
         let create_response = client
             .post("/rest/research-field")
+            .header(Header::new(
+                "X-Session-Token",
+                session_token.session_token.clone(),
+            ))
             .json(&biology)
             .dispatch()
             .await;
@@ -1014,6 +1033,7 @@ mod test {
 
         let biology_get_response = client
             .get(format!("/rest/research-field?id={}", id))
+            .header(Header::new("X-Session-Token", session_token.session_token))
             .dispatch()
             .await;
 
