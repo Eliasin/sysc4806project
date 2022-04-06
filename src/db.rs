@@ -488,8 +488,8 @@ pub async fn remove_application_from_applicant(
 #[derive(Queryable, Serialize)]
 pub struct ApplicantIDNameField {
     pub id: i32,
-    name: String,
     pub desired_field: String,
+    pub name: String,
 }
 
 pub async fn get_applications_for_professor_with_status(
