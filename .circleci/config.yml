@@ -50,6 +50,11 @@ jobs:
       - setup
       - test
 
+format:
+  parameters:
+    nightly-toolchain: true
+    with-cache: true
+
 workflows:
   rust-testing:
     jobs: 
