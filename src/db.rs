@@ -490,6 +490,7 @@ pub struct ApplicantIDNameField {
     pub id: i32,
     pub desired_field: String,
     pub name: String,
+    pub email: String,
 }
 
 pub async fn get_applications_for_professor_with_status(
@@ -498,7 +499,7 @@ pub async fn get_applications_for_professor_with_status(
     status: String,
 ) -> QueryResult<Vec<ApplicantIDNameField>> {
     use schema::applicants::dsl::{
-        applicants, desired_field_id as app_desired_field_id, id as app_id, name as app_name,
+        applicants, desired_field_id as app_desired_field_id, email, id as app_id, name as app_name,
     };
     use schema::research_fields::dsl::{id as rs_id, name as rs_name, research_fields};
     use schema::student_applied_to::dsl::{
@@ -512,7 +513,7 @@ pub async fn get_applications_for_professor_with_status(
             .filter(sa_status.eq(status))
             .inner_join(applicants.on(app_id.eq(sa_applicant_id)))
             .inner_join(research_fields.on(rs_id.eq(app_desired_field_id)))
-            .select((app_id, rs_name, app_name))
+            .select((app_id, rs_name, app_name, email))
             .load::<ApplicantIDNameField>(c)
     })
     .await
