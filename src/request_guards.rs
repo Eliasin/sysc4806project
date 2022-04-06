@@ -2,8 +2,6 @@ use chrono::Local;
 use rocket::request::FromRequest;
 use rocket::{http::Status, outcome::Outcome};
 
-pub const SESSION_COOKIE_NAME: &str = "sysc4806group13project";
-
 pub mod state {
     use chrono::Local;
 
@@ -11,7 +9,7 @@ pub mod state {
     use serde::Serialize;
     use std::collections::HashMap;
 
-    #[derive(Serialize, Clone, Copy)]
+    #[derive(Serialize, Clone, Copy, Debug)]
     pub enum SessionType {
         Applicant(i32),
         Professor(i32),
@@ -20,6 +18,28 @@ pub mod state {
 
     pub type ExpirationTime = DateTime<Local>;
     pub type SessionTokens = HashMap<String, (SessionType, ExpirationTime)>;
+}
+
+pub const SESSION_TOKEN_HEADER_NAME: &'static str = "X-Session-Token";
+
+pub struct SessionTokenHeader {
+    pub session_token: String,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for SessionTokenHeader {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        match request.headers().get_one(SESSION_TOKEN_HEADER_NAME) {
+            Some(v) => Outcome::Success(SessionTokenHeader {
+                session_token: v.to_string(),
+            }),
+            None => Outcome::Failure((Status::Unauthorized, ())),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -40,14 +60,14 @@ impl<'r> FromRequest<'r> for Professor {
                 .state::<crate::SessionTokenState>()
                 .ok_or(())?;
             let mut session_tokens = session_token_lock.lock().await;
-            let cookies = request.cookies();
+            let token = request
+                .headers()
+                .get_one(SESSION_TOKEN_HEADER_NAME)
+                .ok_or(())?;
 
-            let session_cookie = cookies.get_private(&SESSION_COOKIE_NAME).ok_or(())?;
-
-            let (session_type, expiration_time) =
-                session_tokens.get(session_cookie.value()).ok_or(())?;
+            let (session_type, expiration_time) = session_tokens.get(token).ok_or(())?;
             if Local::now() > expiration_time.clone() {
-                session_tokens.remove(session_cookie.value());
+                session_tokens.remove(token);
                 Err(())?
             } else {
                 use state::SessionType;
@@ -81,14 +101,14 @@ impl<'r> FromRequest<'r> for Applicant {
                 .state::<crate::SessionTokenState>()
                 .ok_or(())?;
             let mut session_tokens = session_token_lock.lock().await;
-            let cookies = request.cookies();
+            let token = request
+                .headers()
+                .get_one(SESSION_TOKEN_HEADER_NAME)
+                .ok_or(())?;
 
-            let session_cookie = cookies.get_private(&SESSION_COOKIE_NAME).ok_or(())?;
-
-            let (session_type, expiration_time) =
-                session_tokens.get(session_cookie.value()).ok_or(())?;
+            let (session_type, expiration_time) = session_tokens.get(token).ok_or(())?;
             if Local::now() > expiration_time.clone() {
-                session_tokens.remove(session_cookie.value());
+                session_tokens.remove(token);
                 Err(())?
             } else {
                 use state::SessionType;
@@ -120,14 +140,14 @@ impl<'r> FromRequest<'r> for Administrator {
                 .state::<crate::SessionTokenState>()
                 .ok_or(())?;
             let mut session_tokens = session_token_lock.lock().await;
-            let cookies = request.cookies();
+            let token = request
+                .headers()
+                .get_one(SESSION_TOKEN_HEADER_NAME)
+                .ok_or(())?;
 
-            let session_cookie = cookies.get_private(&SESSION_COOKIE_NAME).ok_or(())?;
-
-            let (session_type, expiration_time) =
-                session_tokens.get(session_cookie.value()).ok_or(())?;
+            let (session_type, expiration_time) = session_tokens.get(token).ok_or(())?;
             if Local::now() > expiration_time.clone() {
-                session_tokens.remove(session_cookie.value());
+                session_tokens.remove(token);
                 Err(())?
             } else {
                 use state::SessionType;

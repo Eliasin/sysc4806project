@@ -5,13 +5,15 @@ use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PEND
 use crate::db::{ApplicantIDNameField, DbConn};
 use crate::models::*;
 use crate::request_guards::state::SessionType;
-use crate::request_guards::{AdminOrApplicant, AdminOrProfessor, Administrator, LoggedIn};
+use crate::request_guards::{
+    AdminOrApplicant, AdminOrProfessor, Administrator, LoggedIn, SessionTokenHeader,
+};
 use crate::SessionTokenState;
 use chrono::{Duration, Local};
 use rand_chacha::rand_core::RngCore;
 use rand_chacha::rand_core::SeedableRng;
 use rocket::data::ByteUnit;
-use rocket::http::{Cookie, CookieJar, Status};
+use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket::{Data, Route};
@@ -541,11 +543,7 @@ async fn upload_applicant_grade_audit(
 }
 
 #[get("/applicant/files/cv?<applicant_id>")]
-async fn get_applicant_cv(
-    conn: DbConn,
-    applicant_id: i32,
-    _logged_in: LoggedIn,
-) -> Result<Vec<u8>, Status> {
+async fn get_applicant_cv(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
     let applicant = match db::get_applicant(&conn, applicant_id).await {
         Ok(v) => match v {
             Some(v) => v,
@@ -569,11 +567,7 @@ async fn get_applicant_cv(
 }
 
 #[get("/applicant/files/diploma?<applicant_id>")]
-async fn get_applicant_diploma(
-    conn: DbConn,
-    applicant_id: i32,
-    _logged_in: LoggedIn,
-) -> Result<Vec<u8>, Status> {
+async fn get_applicant_diploma(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
     let applicant = match db::get_applicant(&conn, applicant_id).await {
         Ok(v) => match v {
             Some(v) => v,
@@ -597,11 +591,7 @@ async fn get_applicant_diploma(
 }
 
 #[get("/applicant/files/grade-audit?<applicant_id>")]
-async fn get_applicant_grade_audit(
-    conn: DbConn,
-    applicant_id: i32,
-    _logged_in: LoggedIn,
-) -> Result<Vec<u8>, Status> {
+async fn get_applicant_grade_audit(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
     let applicant = match db::get_applicant(&conn, applicant_id).await {
         Ok(v) => match v {
             Some(v) => v,
@@ -688,18 +678,21 @@ fn create_session_token() -> String {
     token
 }
 
+#[derive(Serialize, Clone, Copy, Debug)]
+pub struct SessionTypeResponse {
+    session_type: Option<SessionType>,
+}
+
 #[get("/login")]
 pub async fn get_login_type(
-    cookies: &CookieJar<'_>,
     session_tokens: &State<SessionTokenState>,
-) -> Json<Option<SessionType>> {
-    let session_token = cookies.get(crate::request_guards::SESSION_COOKIE_NAME);
-
+    session_token: Option<SessionTokenHeader>,
+) -> Json<SessionTypeResponse> {
     let session_type = match session_token {
         Some(session_token) => {
             let session_tokens = session_tokens.lock().await;
 
-            match session_tokens.get(session_token.value()) {
+            match session_tokens.get(&session_token.session_token) {
                 Some((session_type, _)) => Some(*session_type),
                 None => None,
             }
@@ -707,7 +700,12 @@ pub async fn get_login_type(
         None => None,
     };
 
-    Json(session_type)
+    Json(SessionTypeResponse { session_type })
+}
+
+#[derive(Serialize)]
+pub struct LoginResponse {
+    session_token: String,
 }
 
 #[post("/login", data = "<login_data>")]
@@ -715,8 +713,7 @@ pub async fn login(
     conn: DbConn,
     login_data: Json<Login>,
     session_tokens: &State<SessionTokenState>,
-    cookies: &CookieJar<'_>,
-) -> Status {
+) -> Result<Json<LoginResponse>, Status> {
     match validate_login(
         &conn,
         login_data.username.clone(),
@@ -726,18 +723,16 @@ pub async fn login(
     {
         Ok(session_type) => {
             let token = create_session_token();
-            cookies.add_private(Cookie::new(
-                crate::request_guards::SESSION_COOKIE_NAME,
-                token.clone(),
-            ));
             let mut session_tokens = session_tokens.lock().await;
             let expiry = Local::now() + Duration::days(30);
 
-            session_tokens.insert(token, (session_type, expiry));
-            Status::Ok
+            session_tokens.insert(token.clone(), (session_type, expiry));
+            Ok(Json(LoginResponse {
+                session_token: token,
+            }))
         }
         Err(e) => match e {
-            _ => Status::Forbidden,
+            _ => Err(Status::Forbidden),
         },
     }
 }
@@ -871,6 +866,8 @@ pub fn routes() -> Vec<Route> {
         create_professor_login,
         get_admin_exists,
         get_login_type,
+        accept_application,
+        deny_application,
     ]
 }
 
