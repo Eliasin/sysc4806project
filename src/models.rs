@@ -89,7 +89,7 @@ pub struct NewApplicant {
     pub email: String,
 }
 
-/// This type represents a request for editing an applicant. 
+/// This type represents a request for editing an applicant.
 #[derive(Insertable, Deserialize)]
 #[table_name = "applicants"]
 pub struct NewApplicantEdit {
@@ -118,4 +118,30 @@ pub struct StudentAppliedTo {
     // Diesel does not have good support for Postgres enums, so we use strings for
     // the application status
     pub status: String,
+}
+
+/// This type represents a request for a new admin.
+#[derive(Insertable)]
+#[table_name = "admin_logins"]
+pub struct NewAdminLogin {
+    pub username: String,
+    pub bcrypt_hash: String,
+}
+
+/// This type represents a request for a new applicant. It does not include an ID
+/// as they are auto-generated.
+#[derive(Insertable)]
+#[table_name = "applicant_logins"]
+pub struct NewApplicantLogin {
+    pub username: String,
+    pub bcrypt_hash: String,
+}
+
+/// This type represents a request for a new professor. It does not include an ID
+/// as they are auto-generated.
+#[derive(Insertable)]
+#[table_name = "professor_logins"]
+pub struct NewProfessorLogin {
+    pub username: String,
+    pub bcrypt_hash: String,
 }

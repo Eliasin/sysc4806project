@@ -15,7 +15,8 @@ commands:
           - restore_cache:
               key: '{{ checksum "Cargo.lock" }}'
           - configure-db
-          - run: cargo build
+          - run: rustup toolchain install nightly
+          - run: cargo +nightly build
           - save_cache:
               key: '{{ checksum "Cargo.lock" }}'
               paths:
@@ -25,7 +26,7 @@ commands:
 
   test:
     steps:
-      - run: cargo test
+      - run: cargo +nightly test
 
 executors:
   rust-docker:
@@ -36,6 +37,7 @@ executors:
           PGUSER: root
           ROCKET_PROFILE: testing
           ROCKET_DATABASES: '{db = { url = "postgres://testuser:testpassword@localhost/sysc4806Testing" }}'
+          ROCKET_SECRET_KEY: '+nP4P/jR2/pb1GVIv7nMfBjchAUA38cSDpOAjs50ZJI='
 
       - image: cimg/postgres:14.0
         environment:
@@ -49,6 +51,10 @@ jobs:
     steps:
       - setup
       - test
+
+format:
+  parameters:
+    with-cache: true
 
 workflows:
   rust-testing:

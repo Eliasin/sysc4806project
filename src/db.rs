@@ -1,4 +1,6 @@
 use crate::models::*;
+use crate::request_guards::state::SessionType;
+use crate::rest::Login;
 use crate::schema;
 use anyhow::anyhow;
 use diesel::prelude::*;
@@ -224,13 +226,17 @@ pub async fn edit_applicant(
     Ok(())
 }
 
-pub async fn edit_professor(conn: &DbConn, prof_id: ID, prof_data: NewProfessorEdit) -> QueryResult<()> {
+pub async fn edit_professor(
+    conn: &DbConn,
+    prof_id: ID,
+    prof_data: NewProfessorEdit,
+) -> QueryResult<()> {
     use schema::professors::dsl::*;
-    
+
     conn.run(move |c| {
         diesel::update(professors.find(prof_id))
-        .set(name.eq(prof_data.name))
-        .execute(c)
+            .set(name.eq(prof_data.name))
+            .execute(c)
     })
     .await?;
 
@@ -512,4 +518,183 @@ pub async fn get_applications_for_professor_with_status(
             .load::<ApplicantIDNameField>(c)
     })
     .await
+}
+
+pub enum LoginError {
+    CredentialError,
+    DatabaseError,
+}
+
+#[derive(Queryable)]
+pub struct UserIdHash {
+    pub id: i32,
+    pub password_hash: String,
+}
+
+pub async fn validate_login(
+    conn: &DbConn,
+    username: String,
+    password: String,
+) -> Result<SessionType, LoginError> {
+    use schema::admin_logins::dsl::{
+        admin_logins, bcrypt_hash as admin_password_hash, username as admin_username,
+    };
+    use schema::applicant_logins::dsl::{
+        applicant_logins, bcrypt_hash as applicant_password_hash, id as db_applicant_id,
+        username as applicant_username,
+    };
+    use schema::professor_logins::dsl::{
+        bcrypt_hash as professor_password_hash, id as db_professor_id, professor_logins,
+        username as professor_username,
+    };
+
+    let username = username.to_owned();
+    let password = password.to_owned();
+    {
+        let username = username.clone();
+        let password = password.clone();
+        let applicant = conn
+            .run(move |c| {
+                applicant_logins
+                    .filter(applicant_username.eq(username))
+                    .select((db_applicant_id, applicant_password_hash))
+                    .first::<UserIdHash>(c)
+            })
+            .await
+            .optional()
+            .map_err(|_| LoginError::DatabaseError)?;
+
+        match applicant {
+            Some(applicant) => {
+                let applicant_id = applicant.id;
+                let password_hash = applicant.password_hash;
+
+                if bcrypt::verify(password, password_hash.as_str())
+                    .map_err(|_| LoginError::CredentialError)?
+                {
+                    return Ok(SessionType::Applicant(applicant_id));
+                }
+            }
+            None => {}
+        };
+    }
+
+    {
+        let username = username.clone();
+        let password = password.clone();
+        let professor = conn
+            .run(move |c| {
+                professor_logins
+                    .filter(professor_username.eq(username))
+                    .select((db_professor_id, professor_password_hash))
+                    .first::<UserIdHash>(c)
+            })
+            .await
+            .optional()
+            .map_err(|_| LoginError::DatabaseError)?;
+
+        match professor {
+            Some(professor) => {
+                let professor_id = professor.id;
+                let password_hash = professor.password_hash;
+
+                if bcrypt::verify(password, password_hash.as_str())
+                    .map_err(|_| LoginError::CredentialError)?
+                {
+                    return Ok(SessionType::Professor(professor_id));
+                }
+            }
+            None => {}
+        };
+    }
+
+    let administrator = conn
+        .run(move |c| {
+            admin_logins
+                .filter(admin_username.eq(username))
+                .select(admin_password_hash)
+                .first::<String>(c)
+        })
+        .await
+        .optional()
+        .map_err(|_| LoginError::DatabaseError)?;
+
+    match administrator {
+        Some(password_hash) => {
+            if bcrypt::verify(password, password_hash.as_str())
+                .map_err(|_| LoginError::CredentialError)?
+            {
+                return Ok(SessionType::Administrator());
+            } else {
+                return Err(LoginError::CredentialError);
+            }
+        }
+        None => {}
+    };
+
+    Err(LoginError::CredentialError)
+}
+
+pub async fn create_admin_account(conn: &DbConn, login_data: Login) -> QueryResult<()> {
+    use schema::admin_logins::dsl::admin_logins;
+
+    let bcrypt_hash = bcrypt::hash(login_data.password.as_str(), bcrypt::DEFAULT_COST).unwrap();
+
+    conn.run(move |c| {
+        diesel::insert_into(admin_logins)
+            .values(NewAdminLogin {
+                username: login_data.username,
+                bcrypt_hash,
+            })
+            .execute(c)
+    })
+    .await?;
+    Ok(())
+}
+
+pub async fn create_applicant_account(conn: &DbConn, login_data: Login) -> QueryResult<()> {
+    use schema::applicant_logins::dsl::applicant_logins;
+
+    let bcrypt_hash = bcrypt::hash(login_data.password.as_str(), bcrypt::DEFAULT_COST).unwrap();
+
+    conn.run(move |c| {
+        diesel::insert_into(applicant_logins)
+            .values(NewApplicantLogin {
+                username: login_data.username,
+                bcrypt_hash,
+            })
+            .execute(c)
+    })
+    .await?;
+    Ok(())
+}
+
+pub async fn create_professor_account(conn: &DbConn, login_data: Login) -> QueryResult<()> {
+    use schema::professor_logins::dsl::professor_logins;
+
+    let bcrypt_hash = bcrypt::hash(login_data.password.as_str(), bcrypt::DEFAULT_COST).unwrap();
+
+    conn.run(move |c| {
+        diesel::insert_into(professor_logins)
+            .values(NewProfessorLogin {
+                username: login_data.username,
+                bcrypt_hash,
+            })
+            .execute(c)
+    })
+    .await?;
+    Ok(())
+}
+
+pub async fn admin_exists(conn: &DbConn) -> QueryResult<bool> {
+    use schema::admin_logins::dsl::admin_logins;
+
+    let admins_count = conn
+        .run(move |c| admin_logins.count().get_result::<i64>(c))
+        .await;
+
+    match admins_count {
+        Ok(count) => Ok(count > 0),
+        Err(_) => Err(diesel::result::Error::NotFound),
+    }
 }

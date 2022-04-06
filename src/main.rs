@@ -1,5 +1,5 @@
 //! Establishes application instance.
-
+#![feature(try_blocks)]
 #[macro_use]
 extern crate rocket;
 
@@ -7,11 +7,15 @@ extern crate rocket;
 extern crate diesel;
 
 use db::DbConn;
-use rocket_dyn_templates::Template;
+use request_guards::state::SessionTokens;
+use rocket::futures::lock::Mutex;
+use std::sync::Arc;
+
+pub type SessionTokenState = Arc<Mutex<SessionTokens>>;
 
 pub mod db;
-pub mod html;
 pub mod models;
+pub mod request_guards;
 pub mod rest;
 pub mod schema;
 
@@ -62,8 +66,7 @@ fn rocket() -> _ {
     rocket::build()
         .mount("/rest", rest::routes())
         .mount("/rest", routes![wildcard_options])
-        .mount("/", html::routes())
-        .attach(Template::fairing())
+        .manage(SessionTokenState::new(Mutex::new(SessionTokens::new())))
         .attach(DbConn::fairing())
         .attach(CORS::fairing())
 }
