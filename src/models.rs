@@ -133,6 +133,7 @@ pub struct NewAdminLogin {
 #[derive(Insertable)]
 #[table_name = "applicant_logins"]
 pub struct NewApplicantLogin {
+    pub id: i32,
     pub username: String,
     pub bcrypt_hash: String,
 }
@@ -142,6 +143,7 @@ pub struct NewApplicantLogin {
 #[derive(Insertable)]
 #[table_name = "professor_logins"]
 pub struct NewProfessorLogin {
+    pub id: i32,
     pub username: String,
     pub bcrypt_hash: String,
 }

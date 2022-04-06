@@ -42,10 +42,10 @@ pub async fn get_research_fields(conn: &DbConn) -> QueryResult<Vec<ResearchField
 pub async fn get_research_field(
     conn: &DbConn,
     research_field_id: ID,
-) -> QueryResult<ResearchField> {
+) -> QueryResult<Option<ResearchField>> {
     use schema::research_fields::dsl::*;
 
-    conn.run(move |c| research_fields.find(research_field_id).first(c))
+    conn.run(move |c| research_fields.find(research_field_id).first(c).optional())
         .await
 }
 
@@ -79,10 +79,10 @@ pub async fn create_professor<T: AsRef<str>>(conn: &DbConn, name: T) -> QueryRes
 
 /// This function takes in a ID of a professor
 /// that is then used to locate a specific professor in the database and return it.
-pub async fn get_professor(conn: &DbConn, professor_id: ID) -> QueryResult<Professor> {
+pub async fn get_professor(conn: &DbConn, professor_id: ID) -> QueryResult<Option<Professor>> {
     use schema::professors::dsl::*;
 
-    conn.run(move |c| professors.find(professor_id).first(c))
+    conn.run(move |c| professors.find(professor_id).first(c).optional())
         .await
 }
 
@@ -240,10 +240,10 @@ pub async fn edit_professor(
 
 /// This function takes in an applicant ID which is then used to find the applicant in the
 /// database and return the applicant
-pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Applicant> {
+pub async fn get_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<Option<Applicant>> {
     use schema::applicants::dsl::*;
 
-    conn.run(move |c| applicants.find(applicant_id).first(c))
+    conn.run(move |c| applicants.find(applicant_id).first(c).optional())
         .await
 }
 
@@ -650,7 +650,11 @@ pub async fn create_admin_account(conn: &DbConn, login_data: Login) -> QueryResu
     Ok(())
 }
 
-pub async fn create_applicant_account(conn: &DbConn, login_data: Login) -> QueryResult<()> {
+pub async fn create_applicant_account(
+    conn: &DbConn,
+    applicant_id: i32,
+    login_data: Login,
+) -> QueryResult<()> {
     use schema::applicant_logins::dsl::applicant_logins;
 
     let bcrypt_hash = bcrypt::hash(login_data.password.as_str(), bcrypt::DEFAULT_COST).unwrap();
@@ -658,6 +662,7 @@ pub async fn create_applicant_account(conn: &DbConn, login_data: Login) -> Query
     conn.run(move |c| {
         diesel::insert_into(applicant_logins)
             .values(NewApplicantLogin {
+                id: applicant_id,
                 username: login_data.username,
                 bcrypt_hash,
             })
@@ -667,7 +672,11 @@ pub async fn create_applicant_account(conn: &DbConn, login_data: Login) -> Query
     Ok(())
 }
 
-pub async fn create_professor_account(conn: &DbConn, login_data: Login) -> QueryResult<()> {
+pub async fn create_professor_account(
+    conn: &DbConn,
+    professor_id: i32,
+    login_data: Login,
+) -> QueryResult<()> {
     use schema::professor_logins::dsl::professor_logins;
 
     let bcrypt_hash = bcrypt::hash(login_data.password.as_str(), bcrypt::DEFAULT_COST).unwrap();
@@ -675,6 +684,7 @@ pub async fn create_professor_account(conn: &DbConn, login_data: Login) -> Query
     conn.run(move |c| {
         diesel::insert_into(professor_logins)
             .values(NewProfessorLogin {
+                id: professor_id,
                 username: login_data.username,
                 bcrypt_hash,
             })

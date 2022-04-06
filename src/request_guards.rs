@@ -141,3 +141,99 @@ impl<'r> FromRequest<'r> for Administrator {
         }
     }
 }
+
+pub enum AdminOrApplicant {
+    Admin,
+    Applicant(i32),
+}
+
+impl AdminOrApplicant {
+    pub fn can_access_applicant(&self, id: i32) -> bool {
+        match self {
+            &AdminOrApplicant::Admin => true,
+            &AdminOrApplicant::Applicant(v) => v == id,
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for AdminOrApplicant {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        match Administrator::from_request(&request).await {
+            Outcome::Success(_) => return Outcome::Success(AdminOrApplicant::Admin),
+            _ => {}
+        };
+
+        match Applicant::from_request(&request).await {
+            Outcome::Success(applicant) => {
+                Outcome::Success(AdminOrApplicant::Applicant(applicant.applicant_id))
+            }
+            _ => Outcome::Failure((Status::Forbidden, ())),
+        }
+    }
+}
+
+pub enum AdminOrProfessor {
+    Admin,
+    Professor(i32),
+}
+
+impl AdminOrProfessor {
+    pub fn can_access_prof(&self, id: i32) -> bool {
+        match self {
+            &AdminOrProfessor::Admin => true,
+            &AdminOrProfessor::Professor(v) => v == id,
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for AdminOrProfessor {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        match Administrator::from_request(&request).await {
+            Outcome::Success(_) => return Outcome::Success(AdminOrProfessor::Admin),
+            _ => {}
+        };
+
+        match Professor::from_request(&request).await {
+            Outcome::Success(professor) => {
+                Outcome::Success(AdminOrProfessor::Professor(professor.professor_id))
+            }
+            _ => Outcome::Failure((Status::Forbidden, ())),
+        }
+    }
+}
+
+pub struct LoggedIn {}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for LoggedIn {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        match Administrator::from_request(&request).await {
+            Outcome::Success(_) => return Outcome::Success(LoggedIn {}),
+            _ => {}
+        };
+
+        match Applicant::from_request(&request).await {
+            Outcome::Success(_) => return Outcome::Success(LoggedIn {}),
+            _ => {}
+        };
+
+        match Professor::from_request(&request).await {
+            Outcome::Success(_) => Outcome::Success(LoggedIn {}),
+            _ => Outcome::Failure((Status::Forbidden, ())),
+        }
+    }
+}
