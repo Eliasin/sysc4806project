@@ -2,12 +2,20 @@
 
 use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
+use crate::db::validate_login;
 use crate::models::*;
+use crate::SessionTokenState;
+use crate::request_guards::Administrator;
 use rocket::form::Form;
-use rocket::http::Status;
+use rocket::http::{Status, Cookie, CookieJar};
+use rocket::State;
 use rocket::serde::json::Json;
 use rocket::Route;
+use rocket::response::Redirect;
 use serde::{Deserialize, Serialize};
+use chrono::{Local, Duration};
+use rand_chacha::rand_core::SeedableRng;
+use rand_chacha::rand_core::RngCore;
 
 /// Type representing an id returned for newly created entities.
 #[derive(Serialize, Deserialize, Debug)]
@@ -257,7 +265,7 @@ async fn edit_applicant(
     applicant: Json<NewApplicantEdit>,
 ) -> Result<(), Status> {
     match db::edit_applicant(&conn, app_id, applicant.into_inner()).await {
-        Ok(v) => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => {
             eprintln!("DB error occured while trying to edit applicant: {}", e);
             Err(Status::InternalServerError)
@@ -461,6 +469,132 @@ async fn remove_application_from_applicant(
     }
 }
 
+/// The Login struct represents the HTML form query for a customer login.
+#[derive(Clone, Deserialize)]
+pub struct Login {
+    pub username: String,
+    pub password: String,
+}
+
+fn create_session_token() -> String {
+    let mut rng = rand_chacha::ChaCha12Rng::from_entropy();
+    let mut token: [u8; 32] = [0; 32];
+    rng.fill_bytes(&mut token);
+
+    let token = base64::encode(token);
+
+    token
+}
+
+#[post("/login", data = "<login_data>")]
+pub async fn login(
+    conn: DbConn,
+    login_data: Json<Login>,
+    session_tokens: &State<SessionTokenState>,
+    cookies: &CookieJar<'_>,
+) -> Redirect {
+    match validate_login(&conn, login_data.username.clone(), login_data.password.clone()).await {
+        Ok(session_type) => {
+            let token = create_session_token();
+            cookies.add_private(Cookie::new(crate::request_guards::SESSION_COOKIE_NAME, token.clone()));
+            let mut session_tokens = session_tokens.lock().await;
+            let expiry = Local::now() + Duration::days(30);
+
+            session_tokens.insert(token, (session_type, expiry));
+            Redirect::to(uri!("/"))
+        }
+        Err(e) => match e {
+            _ => Redirect::to(uri!("/login?error=true")),
+        },
+    }
+}
+
+#[post("/login/admin", data = "<login_data>")]
+pub async fn create_admin_login(
+    conn: DbConn,
+    login_data: Json<Login>,
+    administrator: Option<Administrator>
+) -> Status {
+
+    match administrator {
+        Some(_) => {
+            match db::create_admin_account(&conn, login_data.into_inner()).await {
+                Ok(_) => Status::Ok,
+                Err(e) => {
+                    eprintln!("DB error occured while trying to create admin account: {}", e);
+                    Status::InternalServerError
+                }
+            }
+        },
+        None => {
+            match db::admin_exists(&conn).await {
+                Ok(result) => {
+                    if !result {
+                        match db::create_admin_account(&conn, login_data.into_inner()).await {
+                            Ok(_) => Status::Ok,
+                            Err(e) => {
+                                eprintln!("DB error occured while trying to create admin account: {}", e);
+                                Status::InternalServerError
+                            }
+                        }
+                    } else {
+                        Status::Forbidden
+                    }
+                },
+                Err(_) => Status::Forbidden
+            }
+        },
+    }
+}
+
+#[post("/login/applicant", data = "<login_data>")]
+pub async fn create_applicant_login(
+    conn: DbConn,
+    login_data: Json<Login>,
+    _administrator: Administrator
+) -> Status {
+
+    match db::create_applicant_account(&conn, login_data.into_inner()).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to create admin account: {}", e);
+            Status::InternalServerError
+        }
+    }
+}
+
+#[post("/login/professor", data = "<login_data>")]
+pub async fn create_professor_login(
+    conn: DbConn,
+    login_data: Json<Login>,
+    _administrator: Administrator
+) -> Status {
+
+    match db::create_professor_account(&conn, login_data.into_inner()).await {
+        Ok(_) => Status::Ok,
+        Err(e) => {
+            eprintln!("DB error occured while trying to create admin account: {}", e);
+            Status::InternalServerError
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct AdminExistsResult {
+    result: bool,
+}
+
+#[get("/admin-exists")]
+pub async fn get_admin_exists(conn: DbConn) -> Result<Json<AdminExistsResult>, Status> {
+    match db::admin_exists(&conn).await {
+        Ok(result) => Ok(Json(AdminExistsResult { result })),
+        Err(e) => {
+            eprintln!("DB error occured while trying to get admin exists: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
 /// Declaration of REST request routes.
 pub fn routes() -> Vec<Route> {
     routes![
@@ -488,6 +622,11 @@ pub fn routes() -> Vec<Route> {
         get_applicant_grade_audit,
         get_applicants_for_professor_with_status,
         get_professors,
+        login,
+        create_admin_login,
+        create_applicant_login,
+        create_professor_login,
+        get_admin_exists,
     ]
 }
 
