@@ -4,6 +4,7 @@ use crate::db::validate_login;
 use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
 use crate::models::*;
+use crate::request_guards::state::SessionType;
 use crate::request_guards::{AdminOrApplicant, AdminOrProfessor, Administrator, LoggedIn};
 use crate::SessionTokenState;
 use chrono::{Duration, Local};
@@ -11,7 +12,6 @@ use rand_chacha::rand_core::RngCore;
 use rand_chacha::rand_core::SeedableRng;
 use rocket::data::ByteUnit;
 use rocket::http::{Cookie, CookieJar, Status};
-use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket::{Data, Route};
@@ -688,6 +688,28 @@ fn create_session_token() -> String {
     token
 }
 
+#[get("/login")]
+pub async fn get_login_type(
+    cookies: &CookieJar<'_>,
+    session_tokens: &State<SessionTokenState>,
+) -> Json<Option<SessionType>> {
+    let session_token = cookies.get(crate::request_guards::SESSION_COOKIE_NAME);
+
+    let session_type = match session_token {
+        Some(session_token) => {
+            let session_tokens = session_tokens.lock().await;
+
+            match session_tokens.get(session_token.value()) {
+                Some((session_type, _)) => Some(*session_type),
+                None => None,
+            }
+        }
+        None => None,
+    };
+
+    Json(session_type)
+}
+
 #[post("/login", data = "<login_data>")]
 pub async fn login(
     conn: DbConn,
@@ -848,6 +870,7 @@ pub fn routes() -> Vec<Route> {
         create_applicant_login,
         create_professor_login,
         get_admin_exists,
+        get_login_type,
     ]
 }
 

@@ -622,7 +622,7 @@ pub async fn validate_login(
             if bcrypt::verify(password, password_hash.as_str())
                 .map_err(|_| LoginError::CredentialError)?
             {
-                return Ok(SessionType::Administrator());
+                return Ok(SessionType::Administrator);
             } else {
                 return Err(LoginError::CredentialError);
             }

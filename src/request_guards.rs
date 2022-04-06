@@ -8,12 +8,14 @@ pub mod state {
     use chrono::Local;
 
     use chrono::DateTime;
+    use serde::Serialize;
     use std::collections::HashMap;
 
+    #[derive(Serialize, Clone, Copy)]
     pub enum SessionType {
         Applicant(i32),
         Professor(i32),
-        Administrator(),
+        Administrator,
     }
 
     pub type ExpirationTime = DateTime<Local>;
@@ -40,12 +42,12 @@ impl<'r> FromRequest<'r> for Professor {
             let mut session_tokens = session_token_lock.lock().await;
             let cookies = request.cookies();
 
-            let cust_session_cookie = cookies.get_private(&SESSION_COOKIE_NAME).ok_or(())?;
+            let session_cookie = cookies.get_private(&SESSION_COOKIE_NAME).ok_or(())?;
 
             let (session_type, expiration_time) =
-                session_tokens.get(cust_session_cookie.value()).ok_or(())?;
+                session_tokens.get(session_cookie.value()).ok_or(())?;
             if Local::now() > expiration_time.clone() {
-                session_tokens.remove(cust_session_cookie.value());
+                session_tokens.remove(session_cookie.value());
                 Err(())?
             } else {
                 use state::SessionType;
@@ -130,7 +132,7 @@ impl<'r> FromRequest<'r> for Administrator {
             } else {
                 use state::SessionType;
                 match session_type {
-                    &SessionType::Administrator() => Administrator {},
+                    &SessionType::Administrator => Administrator {},
                     &_ => Err(())?,
                 }
             }
