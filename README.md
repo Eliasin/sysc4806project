@@ -4,6 +4,10 @@ CircleCI Link: https://app.circleci.com/pipelines/github/Eliasin/sysc4806project
 
 Heroku Link: https://sysc4806-rust.herokuapp.com/
 
+Frontend Link: https://sysc4806project-frontend.vercel.app/
+
+Frontend Git: https://github.com/Eliasin/sysc4806project-frontend
+
 ## Deploying locally
 
 ```
@@ -21,3 +25,13 @@ cargo run
 ```
 
 The application is then accessible at http://localhost:8000/
+
+## Plans for upcoming iteration
+
+```
+- Add research topic creation/deletion/modification.
+- Finish implementing professor editing and research fields
+- Implement application accepting and rejecting
+- Add email notifications using SendGrid
+- Improve UI look and feel
+```
