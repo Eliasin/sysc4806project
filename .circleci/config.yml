@@ -26,7 +26,7 @@ commands:
 
   test:
     steps:
-      - run: cargo test
+      - run: cargo +nightly test
 
 executors:
   rust-docker:
