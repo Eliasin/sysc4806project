@@ -89,7 +89,7 @@ pub struct NewApplicant {
     pub email: String,
 }
 
-/// This type represents a request for editing an applicant. 
+/// This type represents a request for editing an applicant.
 #[derive(Insertable, Deserialize)]
 #[table_name = "applicants"]
 pub struct NewApplicantEdit {

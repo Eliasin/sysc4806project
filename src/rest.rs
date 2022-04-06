@@ -1,22 +1,21 @@
 //! Defines the REST endpoints for the Graduate Admissions Management System API.
 
+use crate::db::validate_login;
 use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
-use crate::db::validate_login;
 use crate::models::*;
-use crate::SessionTokenState;
 use crate::request_guards::Administrator;
-use rocket::form::Form;
-use rocket::http::{Status, Cookie, CookieJar};
-use rocket::State;
-use rocket::serde::json::Json;
-use rocket::response::Redirect;
+use crate::SessionTokenState;
+use chrono::{Duration, Local};
+use rand_chacha::rand_core::RngCore;
+use rand_chacha::rand_core::SeedableRng;
 use rocket::data::ByteUnit;
+use rocket::http::{Cookie, CookieJar, Status};
+use rocket::response::Redirect;
+use rocket::serde::json::Json;
+use rocket::State;
 use rocket::{Data, Route};
 use serde::{Deserialize, Serialize};
-use chrono::{Local, Duration};
-use rand_chacha::rand_core::SeedableRng;
-use rand_chacha::rand_core::RngCore;
 
 /// Type representing an id returned for newly created entities.
 #[derive(Serialize, Deserialize, Debug)]
@@ -567,10 +566,19 @@ pub async fn login(
     session_tokens: &State<SessionTokenState>,
     cookies: &CookieJar<'_>,
 ) -> Redirect {
-    match validate_login(&conn, login_data.username.clone(), login_data.password.clone()).await {
+    match validate_login(
+        &conn,
+        login_data.username.clone(),
+        login_data.password.clone(),
+    )
+    .await
+    {
         Ok(session_type) => {
             let token = create_session_token();
-            cookies.add_private(Cookie::new(crate::request_guards::SESSION_COOKIE_NAME, token.clone()));
+            cookies.add_private(Cookie::new(
+                crate::request_guards::SESSION_COOKIE_NAME,
+                token.clone(),
+            ));
             let mut session_tokens = session_tokens.lock().await;
             let expiry = Local::now() + Duration::days(30);
 
@@ -587,36 +595,37 @@ pub async fn login(
 pub async fn create_admin_login(
     conn: DbConn,
     login_data: Json<Login>,
-    administrator: Option<Administrator>
+    administrator: Option<Administrator>,
 ) -> Status {
-
     match administrator {
-        Some(_) => {
-            match db::create_admin_account(&conn, login_data.into_inner()).await {
-                Ok(_) => Status::Ok,
-                Err(e) => {
-                    eprintln!("DB error occured while trying to create admin account: {}", e);
-                    Status::InternalServerError
-                }
+        Some(_) => match db::create_admin_account(&conn, login_data.into_inner()).await {
+            Ok(_) => Status::Ok,
+            Err(e) => {
+                eprintln!(
+                    "DB error occured while trying to create admin account: {}",
+                    e
+                );
+                Status::InternalServerError
             }
         },
-        None => {
-            match db::admin_exists(&conn).await {
-                Ok(result) => {
-                    if !result {
-                        match db::create_admin_account(&conn, login_data.into_inner()).await {
-                            Ok(_) => Status::Ok,
-                            Err(e) => {
-                                eprintln!("DB error occured while trying to create admin account: {}", e);
-                                Status::InternalServerError
-                            }
+        None => match db::admin_exists(&conn).await {
+            Ok(result) => {
+                if !result {
+                    match db::create_admin_account(&conn, login_data.into_inner()).await {
+                        Ok(_) => Status::Ok,
+                        Err(e) => {
+                            eprintln!(
+                                "DB error occured while trying to create admin account: {}",
+                                e
+                            );
+                            Status::InternalServerError
                         }
-                    } else {
-                        Status::Forbidden
                     }
-                },
-                Err(_) => Status::Forbidden
+                } else {
+                    Status::Forbidden
+                }
             }
+            Err(_) => Status::Forbidden,
         },
     }
 }
@@ -625,13 +634,15 @@ pub async fn create_admin_login(
 pub async fn create_applicant_login(
     conn: DbConn,
     login_data: Json<Login>,
-    _administrator: Administrator
+    _administrator: Administrator,
 ) -> Status {
-
     match db::create_applicant_account(&conn, login_data.into_inner()).await {
         Ok(_) => Status::Ok,
         Err(e) => {
-            eprintln!("DB error occured while trying to create admin account: {}", e);
+            eprintln!(
+                "DB error occured while trying to create admin account: {}",
+                e
+            );
             Status::InternalServerError
         }
     }
@@ -641,13 +652,15 @@ pub async fn create_applicant_login(
 pub async fn create_professor_login(
     conn: DbConn,
     login_data: Json<Login>,
-    _administrator: Administrator
+    _administrator: Administrator,
 ) -> Status {
-
     match db::create_professor_account(&conn, login_data.into_inner()).await {
         Ok(_) => Status::Ok,
         Err(e) => {
-            eprintln!("DB error occured while trying to create admin account: {}", e);
+            eprintln!(
+                "DB error occured while trying to create admin account: {}",
+                e
+            );
             Status::InternalServerError
         }
     }

@@ -32,8 +32,7 @@ impl<'r> FromRequest<'r> for Professor {
     async fn from_request(
         request: &'r rocket::Request<'_>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
-
-        let result: Result<Professor, ()> =  try {
+        let result: Result<Professor, ()> = try {
             let session_token_lock = request
                 .rocket()
                 .state::<crate::SessionTokenState>()
@@ -74,8 +73,7 @@ impl<'r> FromRequest<'r> for Applicant {
     async fn from_request(
         request: &'r rocket::Request<'_>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
-
-        let result: Result<Applicant, ()> =  try {
+        let result: Result<Applicant, ()> = try {
             let session_token_lock = request
                 .rocket()
                 .state::<crate::SessionTokenState>()
@@ -105,8 +103,7 @@ impl<'r> FromRequest<'r> for Applicant {
     }
 }
 
-pub struct Administrator {
-}
+pub struct Administrator {}
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Administrator {
@@ -115,8 +112,7 @@ impl<'r> FromRequest<'r> for Administrator {
     async fn from_request(
         request: &'r rocket::Request<'_>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
-
-        let result: Result<Administrator, ()> =  try {
+        let result: Result<Administrator, ()> = try {
             let session_token_lock = request
                 .rocket()
                 .state::<crate::SessionTokenState>()
@@ -134,7 +130,7 @@ impl<'r> FromRequest<'r> for Administrator {
             } else {
                 use state::SessionType;
                 match session_type {
-                    &SessionType::Administrator() => Administrator { },
+                    &SessionType::Administrator() => Administrator {},
                     &_ => Err(())?,
                 }
             }
