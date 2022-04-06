@@ -262,7 +262,7 @@ async fn create_applicant(
 async fn edit_applicant(
     conn: DbConn,
     app_id: i32,
-    applicant: Json<NewApplicantEdit>,
+    applicant: Json<ApplicantEdit>,
 ) -> Result<(), Status> {
     match db::edit_applicant(&conn, app_id, applicant.into_inner()).await {
         Ok(_) => Ok(()),
@@ -277,7 +277,7 @@ async fn edit_applicant(
 async fn edit_professor(
     conn: DbConn,
     prof_id: i32,
-    professor: Json<NewProfessorEdit>,
+    professor: Json<ProfessorEdit>,
 ) -> Result<(), Status> {
     match db::edit_professor(&conn, prof_id, professor.into_inner()).await {
         Ok(_) => Ok(()),
@@ -461,7 +461,10 @@ async fn get_applicant_cv(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, St
         }
     };
     match db::get_applicant_cv_blob(&conn, applicant).await {
-        Ok(v) => Ok(v),
+        Ok(v) => match v {
+            Some(v) => Ok(v),
+            None => Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error while getting applicant cv blob: {}", e);
             return Err(Status::InternalServerError);
@@ -479,7 +482,10 @@ async fn get_applicant_diploma(conn: DbConn, applicant_id: i32) -> Result<Vec<u8
         }
     };
     match db::get_applicant_diploma_blob(&conn, applicant).await {
-        Ok(v) => Ok(v),
+        Ok(v) => match v {
+            Some(v) => Ok(v),
+            None => Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error while getting applicant cv blob: {}", e);
             return Err(Status::InternalServerError);
@@ -497,7 +503,10 @@ async fn get_applicant_grade_audit(conn: DbConn, applicant_id: i32) -> Result<Ve
         }
     };
     match db::get_applicant_grade_audit_blob(&conn, applicant).await {
-        Ok(v) => Ok(v),
+        Ok(v) => match v {
+            Some(v) => Ok(v),
+            None => Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error while getting applicant cv blob: {}", e);
             return Err(Status::InternalServerError);

@@ -2,7 +2,6 @@ use crate::models::*;
 use crate::request_guards::state::SessionType;
 use crate::rest::Login;
 use crate::schema;
-use anyhow::anyhow;
 use diesel::prelude::*;
 use rocket_sync_db_pools::{database, diesel};
 use serde::Serialize;
@@ -183,11 +182,7 @@ pub async fn create_applicant(conn: &DbConn, applicant: NewApplicant) -> QueryRe
 
 /// This function takes in applicant information which is then to and applicant in the applicant
 /// table in the database
-pub async fn edit_applicant(
-    conn: &DbConn,
-    app_id: ID,
-    app_data: NewApplicantEdit,
-) -> QueryResult<()> {
+pub async fn edit_applicant(conn: &DbConn, app_id: ID, app_data: ApplicantEdit) -> QueryResult<()> {
     use schema::applicants::dsl::*;
 
     if let Some(v) = app_data.name {
@@ -229,7 +224,7 @@ pub async fn edit_applicant(
 pub async fn edit_professor(
     conn: &DbConn,
     prof_id: ID,
-    prof_data: NewProfessorEdit,
+    prof_data: ProfessorEdit,
 ) -> QueryResult<()> {
     use schema::professors::dsl::*;
 
@@ -439,11 +434,14 @@ async fn get_applicant_blob(conn: &DbConn, blob_id: ID) -> QueryResult<Vec<u8>> 
 }
 
 /// Gets an applicant's CV as blob of data.
-pub async fn get_applicant_cv_blob(conn: &DbConn, applicant: Applicant) -> anyhow::Result<Vec<u8>> {
+pub async fn get_applicant_cv_blob(
+    conn: &DbConn,
+    applicant: Applicant,
+) -> QueryResult<Option<Vec<u8>>> {
     if let Some(v) = applicant.cv_blob_id {
-        Ok(get_applicant_blob(conn, v).await?)
+        Ok(Some(get_applicant_blob(conn, v).await?))
     } else {
-        Err(anyhow!("Applicant does not have a CV"))
+        Ok(None)
     }
 }
 
@@ -451,11 +449,11 @@ pub async fn get_applicant_cv_blob(conn: &DbConn, applicant: Applicant) -> anyho
 pub async fn get_applicant_diploma_blob(
     conn: &DbConn,
     applicant: Applicant,
-) -> anyhow::Result<Vec<u8>> {
+) -> QueryResult<Option<Vec<u8>>> {
     if let Some(v) = applicant.diploma_blob_id {
-        Ok(get_applicant_blob(conn, v).await?)
+        Ok(Some(get_applicant_blob(conn, v).await?))
     } else {
-        Err(anyhow!("Applicant does not have a diploma"))
+        Ok(None)
     }
 }
 
@@ -463,11 +461,11 @@ pub async fn get_applicant_diploma_blob(
 pub async fn get_applicant_grade_audit_blob(
     conn: &DbConn,
     applicant: Applicant,
-) -> anyhow::Result<Vec<u8>> {
+) -> QueryResult<Option<Vec<u8>>> {
     if let Some(v) = applicant.grade_audit_blob_id {
-        Ok(get_applicant_blob(conn, v).await?)
+        Ok(Some(get_applicant_blob(conn, v).await?))
     } else {
-        Err(anyhow!("Applicant does not have a grade audit"))
+        Ok(None)
     }
 }
 
