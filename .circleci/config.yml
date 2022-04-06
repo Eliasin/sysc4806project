@@ -37,7 +37,7 @@ executors:
           PGUSER: root
           ROCKET_PROFILE: testing
           ROCKET_DATABASES: '{db = { url = "postgres://testuser:testpassword@localhost/sysc4806Testing" }}'
-          ROCKET_SECRET_KEY: '+nP4P/jR2/pb1GVIv7nMfBjchAUA38cSDpOAjs50ZJI='
+          ROCKET_SECRET_KEY: '+nP4P/jR2/pb1GVIv7nMfBjchAUA38cSDpOAjs50ZJI=' 
 
       - image: cimg/postgres:14.0
         environment:

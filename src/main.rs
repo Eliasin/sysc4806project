@@ -18,6 +18,7 @@ pub mod models;
 pub mod request_guards;
 pub mod rest;
 pub mod schema;
+pub mod email;
 
 mod fairings {
     use rocket::{

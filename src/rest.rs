@@ -1,8 +1,9 @@
 //! Defines the REST endpoints for the Graduate Admissions Management System API.
 
 use crate::db::validate_login;
-use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
+use crate::db::{self, APPLICATION_ACCEPTED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
+use crate::email::{send_email_to_applicant, ApplicationStatus};
 use crate::models::*;
 use crate::request_guards::state::SessionType;
 use crate::request_guards::{
@@ -202,7 +203,7 @@ async fn get_applicants_for_professor_with_status(
     _logged_in: LoggedIn,
 ) -> Result<Json<Vec<ApplicantIDNameField>>, Status> {
     match status.as_str() {
-        APPLICATION_ACCPETED => {}
+        APPLICATION_ACCEPTED => {}
         APPLICATION_DENIED => {}
         APPLICATION_PENDING => {}
         _ => {
@@ -265,6 +266,24 @@ pub async fn accept_application(
         eprintln!("Error while accepting an applicant's application: {}", e);
         Err(Status::InternalServerError)
     } else {
+        let applicant = match db::get_applicant(&conn, applicant_id).await {
+            Ok(v) => match v {
+                Some(v) => v,
+                None => return Err(Status::NotFound),
+            },
+            Err(e) => {
+                eprintln!("Error while accepting an applicant's application: {}", e);
+                return Err(Status::InternalServerError);
+            }
+        };
+
+        if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Accepted) {
+            eprintln!(
+                "Error occured while trying to send an email to the applicant: {}",
+                e
+            );
+            return Err(Status::InternalServerError);
+        }
         Ok(())
     }
 }
@@ -284,6 +303,24 @@ pub async fn deny_application(
         eprintln!("Error while denying an applicant's application: {}", e);
         Err(Status::InternalServerError)
     } else {
+        let applicant = match db::get_applicant(&conn, applicant_id).await {
+            Ok(v) => match v {
+                Some(v) => v,
+                None => return Err(Status::NotFound),
+            },
+            Err(e) => {
+                eprintln!("Error while denying an applicant's application: {}", e);
+                return Err(Status::InternalServerError);
+            }
+        };
+
+        if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Denied) {
+            eprintln!(
+                "Error occured while trying to send an email to the applicant: {}",
+                e
+            );
+            return Err(Status::InternalServerError);
+        }
         Ok(())
     }
 }
@@ -555,10 +592,7 @@ async fn get_applicant_cv(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, St
         }
     };
     match db::get_applicant_cv_blob(&conn, applicant).await {
-        Ok(v) => match v {
-            Some(v) => Ok(v),
-            None => Err(Status::NotFound),
-        },
+        Ok(v) => Ok(v),
         Err(e) => {
             eprintln!("DB error while getting applicant cv blob: {}", e);
             return Err(Status::InternalServerError);
@@ -579,10 +613,7 @@ async fn get_applicant_diploma(conn: DbConn, applicant_id: i32) -> Result<Vec<u8
         }
     };
     match db::get_applicant_diploma_blob(&conn, applicant).await {
-        Ok(v) => match v {
-            Some(v) => Ok(v),
-            None => Err(Status::NotFound),
-        },
+        Ok(v) => Ok(v),
         Err(e) => {
             eprintln!("DB error while getting applicant cv blob: {}", e);
             return Err(Status::InternalServerError);
@@ -603,10 +634,7 @@ async fn get_applicant_grade_audit(conn: DbConn, applicant_id: i32) -> Result<Ve
         }
     };
     match db::get_applicant_grade_audit_blob(&conn, applicant).await {
-        Ok(v) => match v {
-            Some(v) => Ok(v),
-            None => Err(Status::NotFound),
-        },
+        Ok(v) => Ok(v),
         Err(e) => {
             eprintln!("DB error while getting applicant cv blob: {}", e);
             return Err(Status::InternalServerError);
