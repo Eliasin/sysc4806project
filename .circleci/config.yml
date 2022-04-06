@@ -15,6 +15,7 @@ commands:
           - restore_cache:
               key: '{{ checksum "Cargo.lock" }}'
           - configure-db
+          - run: rustup toolchain install nightly
           - run: cargo +nightly build
           - save_cache:
               key: '{{ checksum "Cargo.lock" }}'
