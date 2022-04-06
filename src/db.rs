@@ -142,7 +142,7 @@ pub async fn get_fields_professor_researches(
     conn.run(move |c| {
         professor_research_fields
             .filter(prof_id.eq(professor_id))
-            .inner_join(research_fields.on(id.eq(prof_id)))
+            .inner_join(research_fields.on(id.eq(dsl_professor_research_fields::field_id)))
             .select((id, name))
             .load::<ResearchField>(c)
     })
