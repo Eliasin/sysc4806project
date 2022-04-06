@@ -269,7 +269,7 @@ pub async fn delete_applicant(conn: &DbConn, applicant_id: ID) -> QueryResult<()
     Ok(())
 }
 
-pub const APPLICATION_ACCPETED: &'static str = "ACCEPTED";
+pub const APPLICATION_ACCEPTED: &'static str = "ACCEPTED";
 pub const APPLICATION_DENIED: &'static str = "DENIED";
 pub const APPLICATION_PENDING: &'static str = "PENDING";
 
@@ -343,7 +343,7 @@ pub async fn accept_applicant_application(
     app_id: ID,
     professor_id: ID,
 ) -> QueryResult<()> {
-    set_applicant_application_status(conn, app_id, professor_id, APPLICATION_ACCPETED.to_string())
+    set_applicant_application_status(conn, app_id, professor_id, APPLICATION_ACCEPTED.to_string())
         .await
 }
 

@@ -1,11 +1,12 @@
 //! Defines the REST endpoints for the Graduate Admissions Management System API.
 
 use crate::db::validate_login;
-use crate::db::{self, APPLICATION_ACCPETED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
+use crate::db::{self, APPLICATION_ACCEPTED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
 use crate::models::*;
 use crate::request_guards::Administrator;
 use crate::SessionTokenState;
+use crate::email::{ApplicationStatus, send_email_to_applicant};
 use chrono::{Duration, Local};
 use rand_chacha::rand_core::RngCore;
 use rand_chacha::rand_core::SeedableRng;
@@ -171,7 +172,7 @@ async fn get_applicants_for_professor_with_status(
     status: String,
 ) -> Result<Json<Vec<ApplicantIDNameField>>, Status> {
     match status.as_str() {
-        APPLICATION_ACCPETED => {}
+        APPLICATION_ACCEPTED => {}
         APPLICATION_DENIED => {}
         APPLICATION_PENDING => {}
         _ => {
@@ -224,6 +225,18 @@ pub async fn accept_application(
         eprintln!("Error while accepting an applicant's application: {}", e);
         Err(Status::InternalServerError)
     } else {
+        let applicant = match db::get_applicant(&conn, applicant_id).await {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Error while accepting an applicant's application: {}", e);
+                return Err(Status::InternalServerError)
+            }
+        };
+
+        if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Accepted) {
+            eprintln!("Error occured while trying to send an email to the applicant: {}", e);
+            return Err(Status::InternalServerError);
+        }
         Ok(())
     }
 }
@@ -238,6 +251,18 @@ pub async fn deny_application(
         eprintln!("Error while denying an applicant's application: {}", e);
         Err(Status::InternalServerError)
     } else {
+        let applicant = match db::get_applicant(&conn, applicant_id).await {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("Error while denying an applicant's application: {}", e);
+                return Err(Status::InternalServerError)
+            }
+        };
+
+        if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Denied) {
+            eprintln!("Error occured while trying to send an email to the applicant: {}", e);
+            return Err(Status::InternalServerError);
+        }
         Ok(())
     }
 }
@@ -682,6 +707,23 @@ pub async fn get_admin_exists(conn: DbConn) -> Result<Json<AdminExistsResult>, S
     }
 }
 
+#[get("/test/email")]
+pub async fn test_email(conn: DbConn) -> Status {
+    let applicant = match db::get_applicant(&conn, 1).await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Error while accepting an applicant's application: {}", e);
+            return Status::InternalServerError;
+        }
+    };
+
+    if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Accepted) {
+        eprintln!("Error occured while trying to send an email to the applicant: {}", e);
+        return Status::InternalServerError;
+    }
+    Status::Ok
+}
+
 /// Declaration of REST request routes.
 pub fn routes() -> Vec<Route> {
     routes![
@@ -717,6 +759,7 @@ pub fn routes() -> Vec<Route> {
         create_applicant_login,
         create_professor_login,
         get_admin_exists,
+        test_email
     ]
 }
 
