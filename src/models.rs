@@ -92,7 +92,7 @@ pub struct NewApplicant {
 /// This type represents a request for editing an applicant.
 #[derive(Insertable, Deserialize)]
 #[table_name = "applicants"]
-pub struct NewApplicantEdit {
+pub struct ApplicantEdit {
     pub name: Option<String>,
     pub desired_field_id: Option<i32>,
     pub phone_number: Option<String>,
@@ -101,7 +101,7 @@ pub struct NewApplicantEdit {
 
 /// This type represents a request for editing an professor.
 #[derive(Deserialize)]
-pub struct NewProfessorEdit {
+pub struct ProfessorEdit {
     pub name: String,
 }
 
@@ -133,6 +133,7 @@ pub struct NewAdminLogin {
 #[derive(Insertable)]
 #[table_name = "applicant_logins"]
 pub struct NewApplicantLogin {
+    pub id: i32,
     pub username: String,
     pub bcrypt_hash: String,
 }
@@ -142,6 +143,7 @@ pub struct NewApplicantLogin {
 #[derive(Insertable)]
 #[table_name = "professor_logins"]
 pub struct NewProfessorLogin {
+    pub id: i32,
     pub username: String,
     pub bcrypt_hash: String,
 }

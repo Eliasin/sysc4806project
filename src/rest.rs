@@ -3,16 +3,18 @@
 use crate::db::validate_login;
 use crate::db::{self, APPLICATION_ACCEPTED, APPLICATION_DENIED, APPLICATION_PENDING, ID};
 use crate::db::{ApplicantIDNameField, DbConn};
+use crate::email::{send_email_to_applicant, ApplicationStatus};
 use crate::models::*;
-use crate::request_guards::Administrator;
+use crate::request_guards::state::SessionType;
+use crate::request_guards::{
+    AdminOrApplicant, AdminOrProfessor, Administrator, LoggedIn, SessionTokenHeader,
+};
 use crate::SessionTokenState;
-use crate::email::{ApplicationStatus, send_email_to_applicant};
 use chrono::{Duration, Local};
 use rand_chacha::rand_core::RngCore;
 use rand_chacha::rand_core::SeedableRng;
 use rocket::data::ByteUnit;
-use rocket::http::{Cookie, CookieJar, Status};
-use rocket::response::Redirect;
+use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket::{Data, Route};
@@ -29,6 +31,7 @@ struct IdPayload {
 async fn create_research_field(
     conn: DbConn,
     research_field: Json<NewResearchField>,
+    _admin: Administrator,
 ) -> Result<Json<IdPayload>, Status> {
     match db::create_research_field(&conn, research_field.into_inner().name).await {
         Ok(id) => Ok(Json(IdPayload { id })),
@@ -46,7 +49,10 @@ async fn create_research_field(
 #[get("/research-field?<id>")]
 async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>, Status> {
     match db::get_research_field(&conn, id).await {
-        Ok(research_field) => Ok(Json(research_field)),
+        Ok(research_field) => match research_field {
+            Some(research_field) => Ok(Json(research_field)),
+            None => Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error occured while trying to get research field: {}", e);
             Err(Status::InternalServerError)
@@ -56,7 +62,10 @@ async fn get_research_field(conn: DbConn, id: i32) -> Result<Json<ResearchField>
 
 /// Endpoint for getting all research fields.
 #[get("/research-fields")]
-async fn get_research_fields(conn: DbConn) -> Result<Json<Vec<ResearchField>>, Status> {
+async fn get_research_fields(
+    conn: DbConn,
+    _logged_in: LoggedIn,
+) -> Result<Json<Vec<ResearchField>>, Status> {
     match db::get_research_fields(&conn).await {
         Ok(research_fields) => Ok(Json(research_fields)),
         Err(e) => {
@@ -68,7 +77,7 @@ async fn get_research_fields(conn: DbConn) -> Result<Json<Vec<ResearchField>>, S
 
 /// Endpoint for deleting a research field.
 #[delete("/research-field?<id>")]
-async fn delete_research_field(conn: DbConn, id: i32) -> Status {
+async fn delete_research_field(conn: DbConn, id: i32, _admin: Administrator) -> Status {
     match db::delete_research_field(&conn, id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -86,6 +95,7 @@ async fn delete_research_field(conn: DbConn, id: i32) -> Status {
 async fn create_professor(
     conn: DbConn,
     professor: Json<NewProfessor>,
+    _admin: Administrator,
 ) -> Result<Json<IdPayload>, Status> {
     match db::create_professor(&conn, professor.into_inner().name).await {
         Ok(id) => Ok(Json(IdPayload { id })),
@@ -98,9 +108,16 @@ async fn create_professor(
 
 /// Endpoint for getting a professor.
 #[get("/professor?<id>")]
-async fn get_professor(conn: DbConn, id: i32) -> Result<Json<Professor>, Status> {
+async fn get_professor(
+    conn: DbConn,
+    id: i32,
+    _logged_in: LoggedIn,
+) -> Result<Json<Professor>, Status> {
     match db::get_professor(&conn, id).await {
-        Ok(professor) => Ok(Json(professor)),
+        Ok(professor) => match professor {
+            Some(professor) => Ok(Json(professor)),
+            None => Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error occured while trying to get professor: {}", e);
             Err(Status::InternalServerError)
@@ -110,7 +127,10 @@ async fn get_professor(conn: DbConn, id: i32) -> Result<Json<Professor>, Status>
 
 /// Endpoint for getting all professors.
 #[get("/professors")]
-async fn get_professors(conn: DbConn) -> Result<Json<Vec<Professor>>, Status> {
+async fn get_professors(
+    conn: DbConn,
+    _logged_in: LoggedIn,
+) -> Result<Json<Vec<Professor>>, Status> {
     match db::get_professors(&conn).await {
         Ok(v) => Ok(Json(v)),
         Err(e) => {
@@ -122,7 +142,7 @@ async fn get_professors(conn: DbConn) -> Result<Json<Vec<Professor>>, Status> {
 
 /// Endpoint for deleting a professor.
 #[delete("/professor?<id>")]
-async fn delete_professor(conn: DbConn, id: i32) -> Status {
+async fn delete_professor(conn: DbConn, id: i32, _admin: Administrator) -> Status {
     match db::delete_professor(&conn, id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -134,7 +154,16 @@ async fn delete_professor(conn: DbConn, id: i32) -> Status {
 
 /// Endpoint for adding a research field to a professor.
 #[post("/professor/research-field?<prof_id>&<field_id>")]
-async fn add_researched_field_to_professor(conn: DbConn, prof_id: i32, field_id: i32) -> Status {
+async fn add_researched_field_to_professor(
+    conn: DbConn,
+    prof_id: i32,
+    field_id: i32,
+    admin_or_professor: AdminOrProfessor,
+) -> Status {
+    if !admin_or_professor.can_access_prof(prof_id) {
+        return Status::Forbidden;
+    }
+
     match db::add_researched_field_to_professor(&conn, prof_id, field_id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -152,6 +181,7 @@ async fn add_researched_field_to_professor(conn: DbConn, prof_id: i32, field_id:
 async fn get_fields_professor_researches(
     conn: DbConn,
     prof_id: i32,
+    _logged_in: LoggedIn,
 ) -> Result<Json<Vec<ResearchField>>, Status> {
     match db::get_fields_professor_researches(&conn, prof_id).await {
         Ok(research_fields) => Ok(Json(research_fields)),
@@ -170,6 +200,7 @@ async fn get_applicants_for_professor_with_status(
     conn: DbConn,
     id: i32,
     status: String,
+    _logged_in: LoggedIn,
 ) -> Result<Json<Vec<ApplicantIDNameField>>, Status> {
     match status.as_str() {
         APPLICATION_ACCEPTED => {}
@@ -202,7 +233,12 @@ async fn remove_researched_field_from_professor(
     conn: DbConn,
     prof_id: i32,
     field_id: i32,
+    admin_or_professor: AdminOrProfessor,
 ) -> Status {
+    if !admin_or_professor.can_access_prof(prof_id) {
+        return Status::Forbidden;
+    }
+
     match db::remove_researched_field_from_professor(&conn, prof_id, field_id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -220,21 +256,32 @@ pub async fn accept_application(
     conn: DbConn,
     applicant_id: i32,
     professor_id: i32,
+    admin_or_professor: AdminOrProfessor,
 ) -> Result<(), Status> {
+    if !admin_or_professor.can_access_prof(professor_id) {
+        return Err(Status::Forbidden);
+    }
+
     if let Err(e) = db::accept_applicant_application(&conn, applicant_id, professor_id).await {
         eprintln!("Error while accepting an applicant's application: {}", e);
         Err(Status::InternalServerError)
     } else {
         let applicant = match db::get_applicant(&conn, applicant_id).await {
-            Ok(v) => v,
+            Ok(v) => match v {
+                Some(v) => v,
+                None => return Err(Status::NotFound),
+            },
             Err(e) => {
                 eprintln!("Error while accepting an applicant's application: {}", e);
-                return Err(Status::InternalServerError)
+                return Err(Status::InternalServerError);
             }
         };
 
         if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Accepted) {
-            eprintln!("Error occured while trying to send an email to the applicant: {}", e);
+            eprintln!(
+                "Error occured while trying to send an email to the applicant: {}",
+                e
+            );
             return Err(Status::InternalServerError);
         }
         Ok(())
@@ -246,21 +293,32 @@ pub async fn deny_application(
     conn: DbConn,
     applicant_id: i32,
     professor_id: i32,
+    admin_or_professor: AdminOrProfessor,
 ) -> Result<(), Status> {
+    if !admin_or_professor.can_access_prof(professor_id) {
+        return Err(Status::Forbidden);
+    }
+
     if let Err(e) = db::deny_applicant_application(&conn, applicant_id, professor_id).await {
         eprintln!("Error while denying an applicant's application: {}", e);
         Err(Status::InternalServerError)
     } else {
         let applicant = match db::get_applicant(&conn, applicant_id).await {
-            Ok(v) => v,
+            Ok(v) => match v {
+                Some(v) => v,
+                None => return Err(Status::NotFound),
+            },
             Err(e) => {
                 eprintln!("Error while denying an applicant's application: {}", e);
-                return Err(Status::InternalServerError)
+                return Err(Status::InternalServerError);
             }
         };
 
         if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Denied) {
-            eprintln!("Error occured while trying to send an email to the applicant: {}", e);
+            eprintln!(
+                "Error occured while trying to send an email to the applicant: {}",
+                e
+            );
             return Err(Status::InternalServerError);
         }
         Ok(())
@@ -272,6 +330,7 @@ pub async fn deny_application(
 async fn create_applicant(
     conn: DbConn,
     applicant: Json<NewApplicant>,
+    _admin: Administrator,
 ) -> Result<Json<IdPayload>, Status> {
     match db::create_applicant(&conn, applicant.into_inner()).await {
         Ok(id) => Ok(Json(IdPayload { id })),
@@ -287,8 +346,13 @@ async fn create_applicant(
 async fn edit_applicant(
     conn: DbConn,
     app_id: i32,
-    applicant: Json<NewApplicantEdit>,
+    applicant: Json<ApplicantEdit>,
+    admin_or_applicant: AdminOrApplicant,
 ) -> Result<(), Status> {
+    if !admin_or_applicant.can_access_applicant(app_id) {
+        return Err(Status::Forbidden);
+    }
+
     match db::edit_applicant(&conn, app_id, applicant.into_inner()).await {
         Ok(_) => Ok(()),
         Err(e) => {
@@ -302,8 +366,13 @@ async fn edit_applicant(
 async fn edit_professor(
     conn: DbConn,
     prof_id: i32,
-    professor: Json<NewProfessorEdit>,
+    professor: Json<ProfessorEdit>,
+    admin_or_professor: AdminOrProfessor,
 ) -> Result<(), Status> {
+    if !admin_or_professor.can_access_prof(prof_id) {
+        return Err(Status::Forbidden);
+    }
+
     match db::edit_professor(&conn, prof_id, professor.into_inner()).await {
         Ok(_) => Ok(()),
         Err(e) => {
@@ -315,9 +384,16 @@ async fn edit_professor(
 
 /// Endpoint for getting an applicant.
 #[get("/applicant?<id>")]
-async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status> {
+async fn get_applicant(
+    conn: DbConn,
+    id: i32,
+    _logged_in: LoggedIn,
+) -> Result<Json<Applicant>, Status> {
     match db::get_applicant(&conn, id).await {
-        Ok(applicant) => Ok(Json(applicant)),
+        Ok(applicant) => match applicant {
+            Some(applicant) => Ok(Json(applicant)),
+            None => Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error occured while trying to get applicant: {}", e);
             Err(Status::InternalServerError)
@@ -327,7 +403,10 @@ async fn get_applicant(conn: DbConn, id: i32) -> Result<Json<Applicant>, Status>
 
 /// Endpoint for getting all applicants.
 #[get("/applicants")]
-async fn get_applicants(conn: DbConn) -> Result<Json<Vec<Applicant>>, Status> {
+async fn get_applicants(
+    conn: DbConn,
+    _logged_in: LoggedIn,
+) -> Result<Json<Vec<Applicant>>, Status> {
     match db::get_applicants(&conn).await {
         Ok(applicants) => Ok(Json(applicants)),
         Err(e) => {
@@ -339,7 +418,7 @@ async fn get_applicants(conn: DbConn) -> Result<Json<Vec<Applicant>>, Status> {
 
 /// Endpoint for deleting an applicant.
 #[delete("/applicant?<id>")]
-async fn delete_applicant(conn: DbConn, id: i32) -> Status {
+async fn delete_applicant(conn: DbConn, id: i32, _admin: Administrator) -> Status {
     match db::delete_applicant(&conn, id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -351,7 +430,16 @@ async fn delete_applicant(conn: DbConn, id: i32) -> Status {
 
 /// Endpoint for adding an application to an applicant.
 #[post("/applicant/applications?<applicant_id>&<prof_id>")]
-async fn add_application_to_applicant(conn: DbConn, applicant_id: i32, prof_id: i32) -> Status {
+async fn add_application_to_applicant(
+    conn: DbConn,
+    applicant_id: i32,
+    prof_id: i32,
+    admin_or_applicant: AdminOrApplicant,
+) -> Status {
+    if !admin_or_applicant.can_access_applicant(applicant_id) {
+        return Status::Forbidden;
+    }
+
     match db::add_application_to_applicant(&conn, applicant_id, prof_id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -374,7 +462,12 @@ async fn upload_applicant_cv(
     conn: DbConn,
     applicant_id: i32,
     file: Data<'_>,
+    admin_or_applicant: AdminOrApplicant,
 ) -> Result<(), Status> {
+    if !admin_or_applicant.can_access_applicant(applicant_id) {
+        return Err(Status::Forbidden);
+    }
+
     let file = match file.open(get_file_upload_max()).into_bytes().await {
         Ok(v) => v,
         Err(e) => {
@@ -410,7 +503,12 @@ async fn upload_applicant_diploma(
     conn: DbConn,
     applicant_id: i32,
     file: Data<'_>,
+    admin_or_applicant: AdminOrApplicant,
 ) -> Result<(), Status> {
+    if !admin_or_applicant.can_access_applicant(applicant_id) {
+        return Err(Status::Forbidden);
+    }
+
     let file = match file.open(get_file_upload_max()).into_bytes().await {
         Ok(v) => v,
         Err(e) => {
@@ -446,7 +544,12 @@ async fn upload_applicant_grade_audit(
     conn: DbConn,
     applicant_id: i32,
     file: Data<'_>,
+    admin_or_applicant: AdminOrApplicant,
 ) -> Result<(), Status> {
+    if !admin_or_applicant.can_access_applicant(applicant_id) {
+        return Err(Status::Forbidden);
+    }
+
     let file = match file.open(get_file_upload_max()).into_bytes().await {
         Ok(v) => v,
         Err(e) => {
@@ -479,7 +582,10 @@ async fn upload_applicant_grade_audit(
 #[get("/applicant/files/cv?<applicant_id>")]
 async fn get_applicant_cv(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
     let applicant = match db::get_applicant(&conn, applicant_id).await {
-        Ok(v) => v,
+        Ok(v) => match v {
+            Some(v) => v,
+            None => return Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error while fetching applicant: {}", e);
             return Err(Status::InternalServerError);
@@ -497,7 +603,10 @@ async fn get_applicant_cv(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, St
 #[get("/applicant/files/diploma?<applicant_id>")]
 async fn get_applicant_diploma(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
     let applicant = match db::get_applicant(&conn, applicant_id).await {
-        Ok(v) => v,
+        Ok(v) => match v {
+            Some(v) => v,
+            None => return Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error while fetching applicant: {}", e);
             return Err(Status::InternalServerError);
@@ -515,7 +624,10 @@ async fn get_applicant_diploma(conn: DbConn, applicant_id: i32) -> Result<Vec<u8
 #[get("/applicant/files/grade-audit?<applicant_id>")]
 async fn get_applicant_grade_audit(conn: DbConn, applicant_id: i32) -> Result<Vec<u8>, Status> {
     let applicant = match db::get_applicant(&conn, applicant_id).await {
-        Ok(v) => v,
+        Ok(v) => match v {
+            Some(v) => v,
+            None => return Err(Status::NotFound),
+        },
         Err(e) => {
             eprintln!("DB error while fetching applicant: {}", e);
             return Err(Status::InternalServerError);
@@ -535,7 +647,12 @@ async fn get_applicant_grade_audit(conn: DbConn, applicant_id: i32) -> Result<Ve
 async fn get_profs_applicant_applied_to(
     conn: DbConn,
     applicant_id: i32,
+    admin_or_applicant: AdminOrApplicant,
 ) -> Result<Json<Vec<Professor>>, Status> {
+    if !admin_or_applicant.can_access_applicant(applicant_id) {
+        return Err(Status::Forbidden);
+    }
+
     match db::get_profs_applicant_applied_to(&conn, applicant_id).await {
         Ok(professors) => Ok(Json(professors)),
         Err(e) => {
@@ -554,7 +671,12 @@ async fn remove_application_from_applicant(
     conn: DbConn,
     applicant_id: i32,
     prof_id: i32,
+    admin_or_applicant: AdminOrApplicant,
 ) -> Status {
+    if !admin_or_applicant.can_access_applicant(applicant_id) {
+        return Status::Forbidden;
+    }
+
     match db::remove_application_from_applicant(&conn, applicant_id, prof_id).await {
         Ok(_) => Status::Ok,
         Err(e) => {
@@ -584,13 +706,42 @@ fn create_session_token() -> String {
     token
 }
 
+#[derive(Serialize, Clone, Copy, Debug)]
+pub struct SessionTypeResponse {
+    session_type: Option<SessionType>,
+}
+
+#[get("/login")]
+pub async fn get_login_type(
+    session_tokens: &State<SessionTokenState>,
+    session_token: Option<SessionTokenHeader>,
+) -> Json<SessionTypeResponse> {
+    let session_type = match session_token {
+        Some(session_token) => {
+            let session_tokens = session_tokens.lock().await;
+
+            match session_tokens.get(&session_token.session_token) {
+                Some((session_type, _)) => Some(*session_type),
+                None => None,
+            }
+        }
+        None => None,
+    };
+
+    Json(SessionTypeResponse { session_type })
+}
+
+#[derive(Serialize)]
+pub struct LoginResponse {
+    session_token: String,
+}
+
 #[post("/login", data = "<login_data>")]
 pub async fn login(
     conn: DbConn,
     login_data: Json<Login>,
     session_tokens: &State<SessionTokenState>,
-    cookies: &CookieJar<'_>,
-) -> Redirect {
+) -> Result<Json<LoginResponse>, Status> {
     match validate_login(
         &conn,
         login_data.username.clone(),
@@ -600,18 +751,16 @@ pub async fn login(
     {
         Ok(session_type) => {
             let token = create_session_token();
-            cookies.add_private(Cookie::new(
-                crate::request_guards::SESSION_COOKIE_NAME,
-                token.clone(),
-            ));
             let mut session_tokens = session_tokens.lock().await;
             let expiry = Local::now() + Duration::days(30);
 
-            session_tokens.insert(token, (session_type, expiry));
-            Redirect::to(uri!("/"))
+            session_tokens.insert(token.clone(), (session_type, expiry));
+            Ok(Json(LoginResponse {
+                session_token: token,
+            }))
         }
         Err(e) => match e {
-            _ => Redirect::to(uri!("/login?error=true")),
+            _ => Err(Status::Forbidden),
         },
     }
 }
@@ -655,13 +804,14 @@ pub async fn create_admin_login(
     }
 }
 
-#[post("/login/applicant", data = "<login_data>")]
+#[post("/login/applicant?<applicant_id>", data = "<login_data>")]
 pub async fn create_applicant_login(
     conn: DbConn,
     login_data: Json<Login>,
+    applicant_id: i32,
     _administrator: Administrator,
 ) -> Status {
-    match db::create_applicant_account(&conn, login_data.into_inner()).await {
+    match db::create_applicant_account(&conn, applicant_id, login_data.into_inner()).await {
         Ok(_) => Status::Ok,
         Err(e) => {
             eprintln!(
@@ -673,13 +823,14 @@ pub async fn create_applicant_login(
     }
 }
 
-#[post("/login/professor", data = "<login_data>")]
+#[post("/login/professor?<professor_id>", data = "<login_data>")]
 pub async fn create_professor_login(
     conn: DbConn,
     login_data: Json<Login>,
+    professor_id: i32,
     _administrator: Administrator,
 ) -> Status {
-    match db::create_professor_account(&conn, login_data.into_inner()).await {
+    match db::create_professor_account(&conn, professor_id, login_data.into_inner()).await {
         Ok(_) => Status::Ok,
         Err(e) => {
             eprintln!(
@@ -710,7 +861,10 @@ pub async fn get_admin_exists(conn: DbConn) -> Result<Json<AdminExistsResult>, S
 #[get("/test/email")]
 pub async fn test_email(conn: DbConn) -> Status {
     let applicant = match db::get_applicant(&conn, 1).await {
-        Ok(v) => v,
+        Ok(v) => match v {
+            Some(v) => v,
+            None => return Status::NotFound,
+        },
         Err(e) => {
             eprintln!("Error while accepting an applicant's application: {}", e);
             return Status::InternalServerError;
@@ -718,7 +872,10 @@ pub async fn test_email(conn: DbConn) -> Status {
     };
 
     if let Err(e) = send_email_to_applicant(applicant, ApplicationStatus::Accepted) {
-        eprintln!("Error occured while trying to send an email to the applicant: {}", e);
+        eprintln!(
+            "Error occured while trying to send an email to the applicant: {}",
+            e
+        );
         return Status::InternalServerError;
     }
     Status::Ok
@@ -759,7 +916,10 @@ pub fn routes() -> Vec<Route> {
         create_applicant_login,
         create_professor_login,
         get_admin_exists,
-        test_email
+        test_email,
+        get_login_type,
+        accept_application,
+        deny_application,
     ]
 }
 
