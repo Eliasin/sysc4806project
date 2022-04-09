@@ -130,7 +130,8 @@ pub struct NewAdminLogin {
 
 /// This type represents a request for a new applicant. It does not include an ID
 /// as they are auto-generated.
-#[derive(Insertable)]
+#[derive(Insertable, Associations)]
+#[belongs_to(Applicant, foreign_key = "id")]
 #[table_name = "applicant_logins"]
 pub struct NewApplicantLogin {
     pub id: i32,
@@ -140,7 +141,8 @@ pub struct NewApplicantLogin {
 
 /// This type represents a request for a new professor. It does not include an ID
 /// as they are auto-generated.
-#[derive(Insertable)]
+#[derive(Insertable, Associations)]
+#[belongs_to(Professor, foreign_key = "id")]
 #[table_name = "professor_logins"]
 pub struct NewProfessorLogin {
     pub id: i32,
