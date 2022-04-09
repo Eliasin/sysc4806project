@@ -9,3 +9,9 @@ ALTER TABLE student_applied_to
     ADD constraint student_applied_to_applicant_id_fkey
     foreign key (applicant_id)
     references applicants(id);
+
+ALTER TABLE professor_logins 
+    DROP constraint professor_logins_id_fkey,
+    ADD constraint professor_logins_id_fkey
+    foreign key (id)
+    references professors(id);

@@ -11,3 +11,10 @@ ALTER TABLE student_applied_to
     FOREIGN KEY (applicant_id)
     REFERENCES applicants(id)
     ON DELETE CASCADE;
+
+ALTER TABLE professor_logins 
+    DROP constraint professor_logins_id_fkey,
+    ADD constraint professor_logins_id_fkey
+    foreign key (id)
+    references professors(id)
+    ON DELETE CASCADE;
