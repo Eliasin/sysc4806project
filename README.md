@@ -2,6 +2,7 @@
 
 CircleCI Link: https://app.circleci.com/pipelines/github/Eliasin/sysc4806project?invite=true
 
+**This is for backend, Do not click to view frontend:**
 Heroku Link: https://sysc4806-rust.herokuapp.com/
 
 Frontend Link: https://sysc4806project-frontend.vercel.app/
