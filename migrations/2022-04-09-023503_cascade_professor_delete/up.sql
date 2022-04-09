@@ -18,3 +18,10 @@ ALTER TABLE professor_logins
     foreign key (id)
     references professors(id)
     ON DELETE CASCADE;
+
+ALTER TABLE applicant_logins 
+    DROP constraint applicant_logins_id_fkey,
+    ADD constraint applicant_logins_id_fkey
+    foreign key (id)
+    references applicants(id)
+    ON DELETE CASCADE;
