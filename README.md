@@ -9,6 +9,8 @@ Frontend Link: https://sysc4806project-frontend.vercel.app/
 
 Frontend Git: https://github.com/Eliasin/sysc4806project-frontend
 
+Database Diagram and Schema are in this Repository
+
 ## Deploying locally
 
 ```
